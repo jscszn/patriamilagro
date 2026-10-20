@@ -1,0 +1,11 @@
+Carpeta de recursos opcionales. El juego dibuja y sintetiza todo por código;
+si colocas aquí un archivo con el nombre esperado, se usa en lugar del generado.
+  sprites/<nombre>.png   -> reemplaza el sprite <nombre>
+  sonidos/<efecto>.wav|.ogg        -> reemplaza un efecto (ver audio/sintesis.py)
+  sonidos/musica_<tema>.ogg        -> reemplaza un tema musical (menu, nivel1..3, jefe, ...)
+  fuentes/pixel.ttf      -> reemplaza la fuente por defecto
+  sonidos/bienvenida.wav -> la frase que suena al entrar al menú y al ganar
+                            (se genera con tools/limpiar_voz.py)
+  sonidos_raw/           -> grabaciones originales (voz y himno); no las usa el juego
+  sprites_raw/dron|moto|camioneta|arma_triple|arma_rapida|vida.jpeg
+                         -> refuerzos y armas; hoy se dibujan por código (ver README)

@@ -1,0 +1,319 @@
+{
+  "fecha": "2026-10-15T13:04:10",
+  "camino": [
+    "capturar",
+    "extraditar",
+    "capturar"
+  ],
+  "final": "PRESIDENTE EQUILIBRISTA",
+  "opinion_final": {
+    "medios": 80,
+    "influencers": 75,
+    "pueblo": 62
+  },
+  "historial_opinion": [
+    {
+      "medios": 50,
+      "influencers": 50,
+      "pueblo": 47
+    },
+    {
+      "medios": 56,
+      "influencers": 58,
+      "pueblo": 53
+    },
+    {
+      "medios": 71,
+      "influencers": 63,
+      "pueblo": 44
+    },
+    {
+      "medios": 80,
+      "influencers": 75,
+      "pueblo": 62
+    }
+  ],
+  "puntaje": 36950,
+  "jefes": [
+    "EL JAGUAR DEL MONTE",
+    "DON CONCRETO",
+    "LA SOMBRA DE LA RAYA"
+  ],
+  "arbol": {
+    "raiz": {
+      "nivel": 0,
+      "decision": null,
+      "opinion": {
+        "medios": 50,
+        "influencers": 50,
+        "pueblo": 47
+      },
+      "ajuste": {
+        "medios": 0,
+        "influencers": 0,
+        "pueblo": -3
+      },
+      "hijos": {
+        "capturar": {
+          "nivel": 1,
+          "decision": "capturar",
+          "opinion": {
+            "medios": 56,
+            "influencers": 58,
+            "pueblo": 53
+          },
+          "ajuste": {
+            "medios": 0,
+            "influencers": 0,
+            "pueblo": -6
+          },
+          "hijos": {
+            "extraditar": {
+              "nivel": 2,
+              "decision": "extraditar",
+              "opinion": {
+                "medios": 71,
+                "influencers": 63,
+                "pueblo": 44
+              },
+              "ajuste": {
+                "medios": 0,
+                "influencers": 0,
+                "pueblo": 0
+              },
+              "hijos": {
+                "capturar": {
+                  "nivel": 3,
+                  "decision": "capturar",
+                  "opinion": {
+                    "medios": 80,
+                    "influencers": 75,
+                    "pueblo": 62
+                  },
+                  "ajuste": {
+                    "medios": 0,
+                    "influencers": 0,
+                    "pueblo": 0
+                  },
+                  "hijos": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "camino": [
+      "capturar",
+      "extraditar",
+      "capturar"
+    ]
+  },
+  "semilla": 297694,
+  "mapa": {
+    "grafo": {
+      "dirigido": false,
+      "vertices": {
+        "capital": {
+          "nombre": "PALACIO",
+          "pos": [
+            14,
+            1.0
+          ]
+        },
+        "sierra": {
+          "nombre": "LA SIERRA",
+          "pos": [
+            60,
+            0.45
+          ]
+        },
+        "llanos": {
+          "nombre": "LOS LLANOS",
+          "pos": [
+            60,
+            1.55
+          ]
+        },
+        "puerto": {
+          "nombre": "EL PUERTO",
+          "pos": [
+            128,
+            0.0
+          ]
+        },
+        "selva": {
+          "nombre": "LA SELVA",
+          "pos": [
+            124,
+            2.0
+          ]
+        },
+        "ciudad": {
+          "nombre": "LA CIUDAD",
+          "pos": [
+            158,
+            1.0
+          ]
+        },
+        "desierto": {
+          "nombre": "EL DESIERTO",
+          "pos": [
+            218,
+            1.7
+          ]
+        },
+        "frontera": {
+          "nombre": "LA FRONTERA",
+          "pos": [
+            218,
+            0.3
+          ]
+        }
+      },
+      "aristas": [
+        [
+          "capital",
+          "llanos",
+          2
+        ],
+        [
+          "capital",
+          "sierra",
+          2
+        ],
+        [
+          "capital",
+          "selva",
+          4
+        ],
+        [
+          "capital",
+          "ciudad",
+          6
+        ],
+        [
+          "sierra",
+          "puerto",
+          2
+        ],
+        [
+          "sierra",
+          "ciudad",
+          2
+        ],
+        [
+          "sierra",
+          "frontera",
+          6
+        ],
+        [
+          "llanos",
+          "selva",
+          1
+        ],
+        [
+          "llanos",
+          "ciudad",
+          3
+        ],
+        [
+          "puerto",
+          "ciudad",
+          1
+        ],
+        [
+          "puerto",
+          "frontera",
+          3
+        ],
+        [
+          "selva",
+          "ciudad",
+          1
+        ],
+        [
+          "selva",
+          "desierto",
+          4
+        ],
+        [
+          "ciudad",
+          "frontera",
+          1
+        ],
+        [
+          "ciudad",
+          "desierto",
+          1
+        ],
+        [
+          "desierto",
+          "frontera",
+          1
+        ]
+      ]
+    },
+    "costo_base": {
+      "1": 3.0,
+      "2": 5.0,
+      "3": 8.0
+    },
+    "jefes_libres": [],
+    "retenes": [
+      [
+        "selva",
+        "desierto"
+      ],
+      [
+        "selva",
+        "ciudad"
+      ]
+    ]
+  },
+  "rutas": {
+    "1": {
+      "camino": [
+        "capital",
+        "llanos",
+        "selva"
+      ],
+      "peligro": 3,
+      "tramos": 2,
+      "refuerzos": 0,
+      "opinion": {
+        "pueblo": -3
+      },
+      "clave": "segura"
+    },
+    "2": {
+      "camino": [
+        "capital",
+        "llanos",
+        "selva",
+        "ciudad"
+      ],
+      "peligro": 4,
+      "tramos": 3,
+      "refuerzos": 0,
+      "opinion": {
+        "pueblo": -6
+      },
+      "clave": "segura"
+    },
+    "3": {
+      "camino": [
+        "capital",
+        "sierra",
+        "frontera"
+      ],
+      "peligro": 9,
+      "tramos": 2,
+      "refuerzos": 1,
+      "opinion": {
+        "pueblo": 0
+      },
+      "clave": "corta"
+    }
+  }
+}

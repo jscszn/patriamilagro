@@ -1,0 +1,13 @@
+# Entorno y cachés
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Preferencias y progreso de cada jugador (el juego los crea solo)
+config/opciones.json
+config/logros.json
+
+# Grabaciones originales de terceros: el juego no las usa (usa assets/sonidos/bienvenida.wav
+# y audio/himno_datos.py). Quita esta línea si el equipo decide versionarlas.
+assets/sonidos_raw/*.mp3

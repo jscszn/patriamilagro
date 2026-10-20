@@ -1,0 +1,92 @@
+{
+  "fecha": "2026-10-01T16:46:36",
+  "camino": [
+    "liberar",
+    "extraditar",
+    "capturar"
+  ],
+  "final": "PRESIDENTE EQUILIBRISTA",
+  "opinion_final": {
+    "medios": 62,
+    "influencers": 65,
+    "pueblo": 45
+  },
+  "historial_opinion": [
+    {
+      "medios": 50,
+      "influencers": 50,
+      "pueblo": 50
+    },
+    {
+      "medios": 38,
+      "influencers": 48,
+      "pueblo": 36
+    },
+    {
+      "medios": 53,
+      "influencers": 53,
+      "pueblo": 27
+    },
+    {
+      "medios": 62,
+      "influencers": 65,
+      "pueblo": 45
+    }
+  ],
+  "puntaje": 31950,
+  "jefes": [
+    "EL JAGUAR DEL MONTE",
+    "DON CONCRETO",
+    "LA SOMBRA DE LA RAYA"
+  ],
+  "arbol": {
+    "raiz": {
+      "nivel": 0,
+      "decision": null,
+      "opinion": {
+        "medios": 50,
+        "influencers": 50,
+        "pueblo": 50
+      },
+      "hijos": {
+        "liberar": {
+          "nivel": 1,
+          "decision": "liberar",
+          "opinion": {
+            "medios": 38,
+            "influencers": 48,
+            "pueblo": 36
+          },
+          "hijos": {
+            "extraditar": {
+              "nivel": 2,
+              "decision": "extraditar",
+              "opinion": {
+                "medios": 53,
+                "influencers": 53,
+                "pueblo": 27
+              },
+              "hijos": {
+                "capturar": {
+                  "nivel": 3,
+                  "decision": "capturar",
+                  "opinion": {
+                    "medios": 62,
+                    "influencers": 65,
+                    "pueblo": 45
+                  },
+                  "hijos": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "camino": [
+      "liberar",
+      "extraditar",
+      "capturar"
+    ]
+  }
+}

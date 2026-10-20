@@ -1,0 +1,502 @@
+{
+  "_ayuda": [
+    "Cada entrada describe una hoja de sprites PNG en assets/.",
+    "archivo: ruta relativa a assets/. Si no existe, se usa el dibujo por código (placeholder).",
+    "frame: [ancho, alto] de cada cuadro, numerados de izquierda a derecha y de arriba abajo desde 0.",
+    "ancla: [x, y] del punto de los pies dentro del cuadro; se apoya sobre el suelo.",
+    "animaciones: nombre -> lista de cuadros. Si hay PNG, las que falten usan su base o 'quieto' del mismo PNG (nunca el placeholder); 'agachado' se deriva aplastando 'quieto'.",
+    "Los sprites deben mirar a la DERECHA; el juego los voltea al mirar a la izquierda.",
+    "tools/procesar_sprites.py regenera presidente/sicario/jefes desde assets/sprites_raw/.",
+    "Animaciones del jugador: quieto, quieto_arriba, quieto_diag_arriba, quieto_diag_abajo, correr, correr_diag_arriba, correr_diag_abajo, saltar, saltar_arriba, saltar_abajo, saltar_diag_arriba, saltar_diag_abajo, agachado",
+    "Refuerzos: dron, moto, camioneta (tools/procesar_sprites.py --solo dron,moto,camioneta). Ancla de moto y camioneta: apoyo de las ruedas; dron: su CENTRO (se dibuja en el centro de su caja). camioneta.boca: punta del fusil del tirador del techo, relativa al ancla; de ahí salen sus balas. powerup_triple, powerup_rapida y powerup_vida usan a propósito el dibujo por código (pedido del usuario): no tienen PNG."
+  ],
+  "powerup_triple": {
+    "archivo": "sprites/powerup_triple.png",
+    "frame": [
+      16,
+      12
+    ],
+    "fps": 4,
+    "animaciones": {
+      "quieto": [
+        0,
+        1
+      ]
+    }
+  },
+  "powerup_rapida": {
+    "archivo": "sprites/powerup_rapida.png",
+    "frame": [
+      16,
+      12
+    ],
+    "fps": 4,
+    "animaciones": {
+      "quieto": [
+        0,
+        1
+      ]
+    }
+  },
+  "powerup_vida": {
+    "archivo": "sprites/powerup_vida.png",
+    "frame": [
+      12,
+      12
+    ],
+    "fps": 4,
+    "animaciones": {
+      "quieto": [
+        0,
+        1
+      ]
+    }
+  },
+  "dron": {
+    "archivo": "sprites/dron.png",
+    "frame": [
+      39,
+      20
+    ],
+    "ancla": [
+      19,
+      10
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "moto": {
+    "archivo": "sprites/moto.png",
+    "frame": [
+      39,
+      32
+    ],
+    "ancla": [
+      19,
+      32
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "camioneta": {
+    "archivo": "sprites/camioneta.png",
+    "frame": [
+      70,
+      44
+    ],
+    "ancla": [
+      38,
+      44
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    },
+    "boca": [
+      9,
+      -37
+    ]
+  },
+  "bala_jugador": {
+    "archivo": "sprites/bala_jugador.png",
+    "frame": [
+      4,
+      4
+    ],
+    "fps": 12,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "bala_enemigo": {
+    "archivo": "sprites/bala_enemigo.png",
+    "frame": [
+      6,
+      6
+    ],
+    "fps": 12,
+    "animaciones": {
+      "quieto": [
+        0,
+        1
+      ]
+    }
+  },
+  "bala_jefe": {
+    "archivo": "sprites/bala_jefe.png",
+    "frame": [
+      8,
+      8
+    ],
+    "fps": 12,
+    "animaciones": {
+      "quieto": [
+        0,
+        1
+      ]
+    }
+  },
+  "onda": {
+    "archivo": "sprites/onda.png",
+    "frame": [
+      10,
+      12
+    ],
+    "fps": 12,
+    "animaciones": {
+      "quieto": [
+        0,
+        1,
+        2
+      ]
+    }
+  },
+  "jefe1": {
+    "archivo": "sprites/jefe_1.png",
+    "frame": [
+      60,
+      72
+    ],
+    "ancla": [
+      16,
+      72
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "jefe2": {
+    "archivo": "sprites/jefe_2.png",
+    "frame": [
+      51,
+      72
+    ],
+    "ancla": [
+      26,
+      72
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "jefe3": {
+    "archivo": "sprites/jefe_3.png",
+    "frame": [
+      50,
+      72
+    ],
+    "ancla": [
+      22,
+      72
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "sicario": {
+    "archivo": "sprites/sicario_idle.png",
+    "frame": [
+      26,
+      40
+    ],
+    "ancla": [
+      9,
+      40
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  },
+  "jugador": {
+    "frame": [
+      46,
+      44
+    ],
+    "ancla": [
+      22,
+      43
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        "sprites/presidente_idle.png"
+      ],
+      "disparar": [
+        "sprites/presidente_disparar.png"
+      ],
+      "correr": [
+        "sprites/presidente_correr_a.png",
+        "sprites/presidente_disparar.png",
+        "sprites/presidente_correr_b.png",
+        "sprites/presidente_disparar.png"
+      ],
+      "saltar": [
+        "sprites/presidente_saltar.png"
+      ],
+      "agachado": [
+        "sprites/presidente_agachado.png"
+      ],
+      "herido": [
+        "sprites/presidente_herido.png"
+      ],
+      "diag_arriba": [
+        "sprites/presidente_diag_arriba.png"
+      ],
+      "arriba": [
+        "sprites/presidente_arriba.png"
+      ],
+      "diag_abajo": [
+        "sprites/presidente_diag_abajo.png"
+      ],
+      "abajo": [
+        "sprites/presidente_diag_abajo.png"
+      ]
+    },
+    "bocas": {
+      "sprites/presidente_idle.png": [
+        14,
+        -17
+      ],
+      "sprites/presidente_agachado.png": [
+        22,
+        -5
+      ],
+      "sprites/presidente_arriba.png": [
+        6,
+        -37
+      ],
+      "sprites/presidente_correr_a.png": [
+        17,
+        -27
+      ],
+      "sprites/presidente_correr_b.png": [
+        15,
+        -21
+      ],
+      "sprites/presidente_diag_abajo.png": [
+        13,
+        -13
+      ],
+      "sprites/presidente_diag_arriba.png": [
+        16,
+        -39
+      ],
+      "sprites/presidente_disparar.png": [
+        16,
+        -27
+      ],
+      "sprites/presidente_herido.png": [
+        13,
+        -38
+      ],
+      "sprites/presidente_saltar.png": [
+        16,
+        -23
+      ]
+    },
+    "rasgos": {
+      "idle": {
+        "ojo": [
+          22,
+          6
+        ]
+      },
+      "agachado": {
+        "pelo": [
+          [
+            30,
+            32
+          ],
+          [
+            31,
+            32
+          ],
+          [
+            32,
+            32
+          ],
+          [
+            30,
+            33
+          ],
+          [
+            29,
+            34
+          ],
+          [
+            30,
+            34
+          ],
+          [
+            30,
+            35
+          ],
+          [
+            31,
+            36
+          ],
+          [
+            32,
+            36
+          ],
+          [
+            33,
+            36
+          ]
+        ],
+        "piel": [
+          [
+            31,
+            33
+          ],
+          [
+            32,
+            33
+          ],
+          [
+            33,
+            33
+          ],
+          [
+            31,
+            34
+          ],
+          [
+            33,
+            34
+          ],
+          [
+            31,
+            35
+          ],
+          [
+            32,
+            35
+          ],
+          [
+            33,
+            35
+          ]
+        ],
+        "ojo": [
+          32,
+          34
+        ]
+      },
+      "arriba": {
+        "ojo": [
+          24,
+          6
+        ]
+      },
+      "correr_a": {
+        "ojo": [
+          24,
+          6
+        ]
+      },
+      "correr_b": {
+        "ojo": [
+          24,
+          8
+        ]
+      },
+      "diag_abajo": {
+        "ojo": [
+          23,
+          8
+        ]
+      },
+      "diag_arriba": {
+        "ojo": [
+          24,
+          3
+        ]
+      },
+      "disparar": {
+        "ojo": [
+          22,
+          6
+        ]
+      },
+      "herido": {
+        "ojo": [
+          14,
+          8
+        ]
+      },
+      "saltar": {
+        "ojo": [
+          25,
+          7
+        ]
+      }
+    }
+  },
+  "pulgar": {
+    "frame": [
+      29,
+      64
+    ],
+    "ancla": [
+      16,
+      63
+    ],
+    "fps": 8,
+    "animaciones": {
+      "quieto": [
+        "sprites/pulgar.png"
+      ],
+      "presionando": [
+        "sprites/pulgar_flex.png"
+      ]
+    },
+    "yemas": {
+      "sprites/pulgar.png": [
+        -4,
+        -62
+      ],
+      "sprites/pulgar_flex.png": [
+        -4,
+        -48
+      ]
+    }
+  },
+  "presidente_menu": {
+    "archivo": "sprites/presidente_menu.png",
+    "frame": [
+      109,
+      116
+    ],
+    "fps": 1,
+    "animaciones": {
+      "quieto": [
+        0
+      ]
+    }
+  }
+}

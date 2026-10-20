@@ -1,0 +1,13 @@
+{
+  "_ayuda": "IDs de botones del control NES USB. Usa tools/probar_control.py para descubrirlos o remapea desde Opciones > Configurar control.",
+  "botones": {
+    "SALTAR": 1,
+    "DISPARAR": 2,
+    "PAUSA": 9,
+    "AYUDA": 8
+  },
+  "eje_x": 0,
+  "eje_y": 1,
+  "umbral_eje": 0.5,
+  "invertir_eje_y": false
+}
