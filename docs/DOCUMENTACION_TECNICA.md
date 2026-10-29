@@ -12,8 +12,6 @@ mientras se rehace como multijugador local con control NES).
 > Los personajes, medios, influencers y criminales del juego son ficticios. La frase de
 > bienvenida es una grabación real que aportó el equipo (ver [Sonido](#sonido-audio)).
 
-> **Para retomar el desarrollo:** lee [`HISTORIAL.md`](../HISTORIAL.md) (estado, decisiones y pendientes).
-
 ## Instalación
 
 ```bash

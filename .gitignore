@@ -11,3 +11,6 @@ config/logros.json
 # Grabaciones originales de terceros: el juego no las usa (usa assets/sonidos/bienvenida.wav
 # y audio/himno_datos.py). Quita esta línea si el equipo decide versionarlas.
 assets/sonidos_raw/*.mp3
+
+# Notas internas de desarrollo: solo en local
+HISTORIAL.md

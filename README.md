@@ -67,4 +67,3 @@ que pide el laboratorio está, con estos cambios de forma:
 - [`docs/DOCUMENTACION_TECNICA.md`](docs/DOCUMENTACION_TECNICA.md): arquitectura, árbol, grafo,
   multijugador, niveles, sonido y herramientas, en detalle.
 - [`docs/lineamientos.pdf`](docs/lineamientos.pdf): enunciado del laboratorio.
-- [`HISTORIAL.md`](HISTORIAL.md): decisiones de diseño y pendientes.
