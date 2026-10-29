@@ -45,3 +45,36 @@ def aplicar_daltonismo(superficie: pygame.Surface, modo: str) -> None:
     corregidos = pixeles.reshape(-1, 3).astype(np.float32) @ matriz.T
     pixeles[...] = np.clip(corregidos, 0, 255).astype(np.uint8).reshape(pixeles.shape)
     del pixeles                                       # libera el bloqueo de la superficie
+
+
+# --- Filtro CRT (opcional) ---------------------------------------------------------------------
+_crt_cache = {}
+
+
+def mascara_crt(ancho: int, alto: int, escala: int) -> pygame.Surface:
+    """Capa que se MULTIPLICA sobre la imagen ya escalada: líneas de barrido (la última fila de
+    cada píxel más oscura), una rejilla de color muy suave si la escala es grande y las
+    esquinas oscurecidas como en un televisor de tubo. Se calcula una vez por tamaño."""
+    clave = (ancho, alto, escala)
+    if clave in _crt_cache:
+        return _crt_cache[clave]
+    filas = np.ones(alto, np.float32)
+    if escala >= 2:
+        filas[escala - 1::escala] = 0.72                   # línea de barrido
+        if escala >= 4:
+            filas[escala - 2::escala] = 0.9
+    columnas = np.ones((ancho, 3), np.float32)
+    if escala >= 4:                                        # rejilla de fósforo (rojo, verde, azul)
+        for canal in range(3):
+            columnas[canal::3, :] *= 0.94
+            columnas[canal::3, canal] = 1.0
+    x = np.linspace(-1, 1, ancho, dtype=np.float32)[:, None]
+    y = np.linspace(-1, 1, alto, dtype=np.float32)[None, :]
+    vineta = np.clip(1.0 - 0.22 * (x ** 2 + y ** 2) ** 2, 0, 1)        # (ancho, alto)
+    valor = columnas[:, None, :] * (filas[None, :, None] * vineta[:, :, None])
+    sup = pygame.Surface((ancho, alto))
+    pygame.surfarray.blit_array(sup, (valor * 255).astype(np.uint8))
+    if len(_crt_cache) > 4:
+        _crt_cache.clear()
+    _crt_cache[clave] = sup
+    return sup

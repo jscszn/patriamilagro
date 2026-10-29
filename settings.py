@@ -21,7 +21,7 @@ ESCALA_INICIAL = 3              # tamaño inicial de la ventana = 768x672
 FPS = 60
 DT = 1.0 / FPS                  # paso fijo de simulación (segundos)
 MAX_PASOS_POR_FRAME = 5         # evita la "espiral de la muerte" si el PC se atrasa
-DURACION_FUNDIDO = 0.25         # segundos del fundido desde negro al cambiar de escena
+DURACION_TRANSICION = 0.4       # segundos de la cortina de rombos al cambiar de escena (tapar + destapar)
 
 # --- Jugadores -----------------------------------------------------------
 JUGADOR_LOCAL = 1               # id del jugador de este PC (multijugador futuro)
@@ -52,6 +52,7 @@ OPCIONES_POR_DEFECTO = {
     "volumen_musica": 6,         # 0..10
     "volumen_efectos": 8,        # 0..10
     "tutorial": True,
+    "crt": False,                # filtro de televisor de tubo (líneas de barrido)
 }
 MODOS_DALTONISMO = ["ninguno", "protanopia", "deuteranopia", "tritanopia"]
 
@@ -171,9 +172,9 @@ VEHICULOS = {
     "dron": {"nombre": "DRON", "caja": (28, 14), "vida": 2, "velocidad": 58.0, "cadencia": 1.9,
              "vel_bala": 82.0, "dano_bala": 1, "dano_contacto": 1, "puntos": 200, "arma": (0, 14),
              "alcance": 78, "duracion": 11.0, "aviso": 0.5},
-    "moto": {"nombre": "MOTO", "caja": (32, 28), "vida": 2, "velocidad": 128.0, "cadencia": 0.85,
+    "moto": {"nombre": "MOTO", "caja": (32, 28), "vida": 2, "velocidad": 96.0, "cadencia": 0.85,
              "vel_bala": 190.0, "dano_bala": 1, "dano_contacto": 1, "puntos": 300, "arma": (12, 2),
-             "alcance": 150, "vel_salto": 205.0, "aviso": 0.9},
+             "alcance": 150, "vel_salto": 205.0, "aviso": 1.5},          # antes 128 px/s y 0,9 s: llegaban muy rápido
     "camioneta": {"nombre": "CAMIONETA BLINDADA", "caja": (62, 34), "vida": 8, "velocidad": 42.0,
                   "cadencia": 1.7, "vel_bala": 96.0, "dano_bala": 1, "dano_contacto": 1, "puntos": 800,
                   "arma": (-4, -9), "distancia": 96, "rafaga": 2, "aviso": 1.0},

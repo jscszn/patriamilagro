@@ -11,14 +11,18 @@ COLORES_OPINION = {"medios": (60, 188, 252), "influencers": (228, 92, 220), "pue
 ETIQUETAS_OPINION = {"medios": "MED", "influencers": "INF", "pueblo": "PUE"}
 
 
+_BANDA = pygame.Surface((settings.ANCHO, 26), pygame.SRCALPHA)
+_BANDA.fill((0, 0, 0, 140))
+
+
 def _medalla(sup, x, y):
     pygame.draw.rect(sup, C["azul"], (x + 1, y, 3, 3))
     pygame.draw.rect(sup, C["rojo"], (x + 4, y, 3, 3))
     pygame.draw.circle(sup, C["amarillo"], (x + 4, y + 6), 3)
 
 
-def _corazon(sup, x, y, lleno):
-    color = C["rojo"] if lleno else C["gris_oscuro"]
+def _corazon(sup, x, y, lleno, color=None):
+    color = color or (C["rojo"] if lleno else C["gris_oscuro"])
     pygame.draw.rect(sup, color, (x, y + 1, 7, 3))
     pygame.draw.rect(sup, color, (x + 1, y, 2, 1))
     pygame.draw.rect(sup, color, (x + 4, y, 2, 1))
@@ -28,23 +32,24 @@ def _corazon(sup, x, y, lleno):
 
 
 def dibujar_hud(sup: pygame.Surface, estado, opinion_mostrada: dict, sprites=None,
-                id_local: int = None) -> None:
-    """sprites: para dibujar el arma recogida. id_local: de quién son las vidas (modo en red)."""
+                id_local: int = None, tiempo: float = 0.0) -> None:
+    """sprites: para dibujar el arma recogida. id_local: de quién son las vidas (modo en red).
+    Con un solo corazón, ese corazón parpadea (aviso de poca vida)."""
     jugador = estado.jugador(id_local) if id_local is not None else None
     jugador = jugador or estado.jugadores[0]
     varios = len(estado.jugadores) > 1
     # Fondo del HUD
-    banda = pygame.Surface((settings.ANCHO, 26), pygame.SRCALPHA)
-    banda.fill((0, 0, 0, 140))
-    sup.blit(banda, (0, 0))
+    sup.blit(_BANDA, (0, 0))
 
     # Jugador: vidas, corazones, puntaje, arma
     color_jugador = jugador.stats_rol["color"] if varios else C["blanco"]
     dibujar_texto(sup, f"{jugador.id_jugador}P", (3, 2), color_jugador)
     for i in range(min(jugador.vidas, 6)):
         _medalla(sup, 18 + i * 9, 2)
+    ultimo = jugador.salud == 1 and jugador.activo
     for i in range(jugador.salud_max):
-        _corazon(sup, 4 + i * 9, 15, i < jugador.salud and jugador.activo)
+        color = (255, 230, 220) if ultimo and i == 0 and int(tiempo * 6) % 2 else None
+        _corazon(sup, 4 + i * 9, 15, i < jugador.salud and jugador.activo, color)
     x_puntaje = 6 + jugador.salud_max * 9
     puntaje = jugador.puntaje if varios else estado.puntaje_total       # en red: el de cada uno
     dibujar_texto(sup, f"{puntaje:06d}", (x_puntaje, 14), C["blanco"])

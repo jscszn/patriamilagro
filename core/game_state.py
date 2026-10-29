@@ -288,7 +288,8 @@ class EstadoJuego:
                         s.vida -= 1
                         b.vivo = False
                         self._sumar_puntos(b.dueno, settings.SICARIO["puntos"])
-                        self.evento("sicario_muere", x=s.centro[0], y=s.centro[1])
+                        self.evento("sicario_muere", x=s.centro[0], y=s.centro[1], pie=s.pie, mira=s.direccion,
+                                    golpe=1 if b.vx >= 0 else -1, puntos=settings.SICARIO["puntos"])
                         break
                 for v in self.vehiculos:
                     if b.vivo and v.activo and rb.colliderect(v.rect):
@@ -346,7 +347,8 @@ class EstadoJuego:
         for s in self.sicarios:
             if s.vivo:
                 s.vida = 0
-                self.evento("sicario_muere", x=s.centro[0], y=s.centro[1])
+                self.evento("sicario_muere", x=s.centro[0], y=s.centro[1], pie=s.pie, mira=s.direccion,
+                            golpe=-s.direccion, puntos=0)
         for v in self.vehiculos:
             v.vida = 0
         for b in self.balas:

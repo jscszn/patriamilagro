@@ -114,14 +114,14 @@ class TestMapa(unittest.TestCase):
         self.assertEqual(m.ruta(1), (3.0, [PALACIO, "llanos", "selva"]))
         for nivel, zona in ZONA_NIVEL.items():
             costo, ruta = m.ruta(nivel)
-            self.assertEqual((ruta[0], ruta[-1]), (PALACIO, zona))
+            self.assertEqual((ruta[0], ruta[-1]), (m.origen(nivel), zona))
             self.assertEqual(costo, m.costo_base[nivel])
             self.assertEqual(m.peligro(nivel), 0)             # mapa limpio: sin refuerzos extra
 
     def test_influencia_del_jefe_por_olas(self):
         olas = Mapa(con_retenes=False).influencia(1)
         self.assertEqual(olas[0], ["selva"])
-        self.assertEqual(sorted(olas[1]), ["capital", "ciudad", "desierto", "llanos"])
+        self.assertEqual(sorted(olas[1]), ["capital", "casanare", "llanos"])
         self.assertEqual(len(olas), 3)                        # hasta 2 saltos
 
     def test_liberar_empeora_y_capturar_calma(self):
@@ -129,7 +129,7 @@ class TestMapa(unittest.TestCase):
         antes = m.grafo.peso("llanos", "selva")
         m.aplicar_decision(1, LIBERAR)
         self.assertEqual(m.grafo.peso("llanos", "selva"), antes + 2)
-        self.assertEqual(m.jefes_cerca(2), ["selva"])         # la ciudad está a 1 salto de la selva
+        self.assertEqual(m.jefes_cerca(2), ["selva"])         # Medellín está a 2 saltos del Vichada
         self.assertGreaterEqual(m.peligro(2), 1)
         otro = Mapa(con_retenes=False)
         otro.aplicar_decision(1, CAPTURAR)
@@ -154,7 +154,7 @@ class TestMapa(unittest.TestCase):
         m = Mapa(con_retenes=False)
         for a, b, _ in m.grafo.aristas():
             m.grafo.cambiar_peso(a, b, 30)                    # todo el país en llamas
-        self.assertEqual(m.peligro(1), 1)                     # el nivel 1 nunca pasa de +1
+        self.assertEqual(m.peligro(1), 2)                     # el nivel 1 nunca pasa de +2
         self.assertEqual(m.peligro(2), 2)
         self.assertEqual(m.peligro(3), 3)
 
@@ -166,12 +166,13 @@ class TestMapa(unittest.TestCase):
             with self.subTest(nivel=nivel):
                 r = m.rutas(nivel)
                 self.assertEqual(set(r), {SEGURA, CORTA})
+                origen = m.origen(nivel)
                 for ruta in r.values():
-                    self.assertEqual((ruta["camino"][0], ruta["camino"][-1]), (PALACIO, zona))
+                    self.assertEqual((ruta["camino"][0], ruta["camino"][-1]), (origen, zona))
                     self.assertEqual(ruta["peligro"], m.grafo.costo_de(ruta["camino"]))
                     self.assertEqual(ruta["tramos"], len(ruta["camino"]) - 1)
-                self.assertEqual(r[SEGURA]["peligro"], m.grafo.camino_mas_barato(PALACIO, zona)[0])
-                self.assertEqual(r[CORTA]["tramos"], m.grafo.saltos(PALACIO)[zona])
+                self.assertEqual(r[SEGURA]["peligro"], m.grafo.camino_mas_barato(origen, zona)[0])
+                self.assertEqual(r[CORTA]["tramos"], m.grafo.saltos(origen)[zona])
                 self.assertLess(r[CORTA]["tramos"], r[SEGURA]["tramos"])
                 self.assertGreater(r[CORTA]["peligro"], r[SEGURA]["peligro"])
 
@@ -180,7 +181,7 @@ class TestMapa(unittest.TestCase):
         r = Mapa(con_retenes=False).rutas(1)
         self.assertEqual(r[SEGURA]["camino"], [PALACIO, "llanos", "selva"])
         self.assertEqual(r[CORTA]["camino"], [PALACIO, "selva"])
-        self.assertEqual((r[SEGURA]["refuerzos"], r[CORTA]["refuerzos"]), (0, 1))
+        self.assertEqual((r[SEGURA]["refuerzos"], r[CORTA]["refuerzos"]), (0, 2))
         self.assertEqual(r[SEGURA]["opinion"], {"pueblo": -OPINION_POR_TRAMO})      # 1 tramo de más
         self.assertEqual(r[CORTA]["opinion"], {"pueblo": 0})
 
@@ -195,10 +196,21 @@ class TestMapa(unittest.TestCase):
     def test_las_decisiones_cambian_las_rutas(self):
         m = Mapa(con_retenes=False)
         antes = m.rutas(2)[SEGURA]
-        m.aplicar_decision(1, LIBERAR)                        # el Jaguar libre: +2 en las vías de la selva
+        m.aplicar_decision(1, LIBERAR)                        # el Jaguar libre: +2 en las vías del Vichada
         despues = m.rutas(2)[SEGURA]
-        self.assertGreater(despues["refuerzos"], antes["refuerzos"])   # jefe libre a 1 salto de la ciudad
-        self.assertNotIn("selva", despues["camino"])          # Dijkstra evita la zona que empeoró
+        self.assertGreater(despues["peligro"], antes["peligro"])        # salir del Vichada es más peligroso
+        self.assertGreater(despues["refuerzos"], antes["refuerzos"])   # y el jefe libre sigue cerca
+        otro = Mapa(con_retenes=False)
+        otro.aplicar_decision(2, LIBERAR)                     # Don Concreto libre: Medellín empeora
+        self.assertNotIn("ciudad", otro.rutas(1)[SEGURA]["camino"])     # Dijkstra no pasa por ahí
+
+    def test_el_recorrido_cruza_el_pais_de_sur_a_norte(self):
+        """Bogotá -> Vichada -> Medellín -> La Guajira: cada nivel sale de donde terminó el anterior."""
+        from core.mapa import ORIGEN_NIVEL, ZONAS
+        self.assertEqual([ORIGEN_NIVEL[n] for n in (1, 2, 3)], [PALACIO, ZONA_NIVEL[1], ZONA_NIVEL[2]])
+        latitud = {z: pos[1] for z, (_, _, pos) in ZONAS.items()}
+        self.assertLess(latitud[ZONA_NIVEL[1]], latitud[ZONA_NIVEL[2]])
+        self.assertLess(latitud[ZONA_NIVEL[2]], latitud[ZONA_NIVEL[3]])
 
     def test_serializacion(self):
         m = Mapa(semilla=3)
@@ -211,12 +223,14 @@ class TestMapa(unittest.TestCase):
 
 
 class TestDibujoDelMapa(unittest.TestCase):
-    """Las posiciones de core/mapa.py -> ZONAS se eligieron para que las rutas no se enreden."""
+    """Las zonas están en su lugar real del mapa de Colombia y, aun así, las rutas no se enredan."""
 
     @staticmethod
-    def puntos(alto=78.0):
+    def puntos():
+        import math
         from core.mapa import ZONAS
-        return {z: (x, fila * alto / 2) for z, (_, (x, fila)) in ZONAS.items()}
+        cos = math.cos(math.radians(4.0))                     # la misma proyección del mapa
+        return {z: (lon * cos, -lat) for z, (_, _, (lon, lat)) in ZONAS.items()}
 
     def test_ninguna_via_cruza_otra(self):
         from core.mapa import VIAS
@@ -250,9 +264,12 @@ class TestDibujoDelMapa(unittest.TestCase):
                 s, c = rutas[SEGURA]["camino"], rutas[CORTA]["camino"]
                 i = 0
                 while s[i + 1] == c[i + 1]:
-                    i += 1                                      # tramo compartido
+                    i += 1                                      # tramo compartido al salir
+                j = 1
+                while s[-j - 1] == c[-j - 1]:
+                    j += 1                                      # tramo compartido al llegar
                 self.assertGreaterEqual(angulo(s[i], s[i + 1], c[i + 1]), 15)    # al separarse
-                self.assertGreaterEqual(angulo(s[-1], s[-2], c[-2]), 15)         # al llegar
+                self.assertGreaterEqual(angulo(s[-j], s[-j - 1], c[-j - 1]), 15)  # al juntarse
 
 
 class TestArbolEliminar(unittest.TestCase):

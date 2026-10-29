@@ -9,7 +9,7 @@ SUELO = 192
 
 NIVEL = {
     "numero": 3,
-    "nombre": "LA FRONTERA",
+    "nombre": "LA GUAJIRA",
     "largo": 3328,
     "jefe": 3,
 
@@ -120,22 +120,18 @@ NIVEL = {
     "tutorial": [],
 
     "ambiente": {
-        "cielo": [(200, 90, 60), (250, 200, 120)],               # ocaso en el desierto
-        "capas": [
-            {"tipo": "montanas", "color": (150, 80, 64), "factor": 0.15, "base": 160, "alto": 70},
-            {"tipo": "colinas", "color": (190, 120, 74), "factor": 0.35, "base": 180, "alto": 40},
-            {"tipo": "cactus", "color": (60, 110, 64), "factor": 0.6, "base": 200, "alto": 40},
-        ],
+        "paisaje": "guajira",                                    # render/paisajes.py
+        "cielo": [(46, 150, 214), (255, 236, 160)],
+        "estilo": "desierto",                                    # cómo se pinta el suelo
+        "estratos": [(244, 196, 96), (222, 164, 76), (236, 182, 88)],   # arena amarilla en capas
         "decoracion": {
-            "astro": {"tipo": "sol", "x": 196, "y": 128, "radio": 30, "color": (255, 196, 90)},
-            "nubes": {"color": (250, 170, 120), "y": 44, "velocidad": 5},
-            "animales": "buitres",
+            "calor": True,
             "particulas": "rodadoras",
             "adornos": ["roca", "cactus_chico", "roca", "craneo"],
         },
-        "suelo_borde": (222, 182, 112),                          # arena
-        "suelo": (180, 130, 80),
-        "suelo_detalle": (150, 104, 60),
-        "plataforma": (124, 84, 52),                             # tablas / roca
+        "suelo_borde": (252, 220, 132),                          # arena
+        "suelo": (232, 180, 90),
+        "suelo_detalle": (200, 148, 70),
+        "plataforma": (156, 112, 66),                            # tablas / roca
     },
 }

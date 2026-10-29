@@ -8,7 +8,7 @@ SUELO = 192
 
 NIVEL = {
     "numero": 1,
-    "nombre": "LA SELVA",
+    "nombre": "LA SELVA DEL VICHADA",
     "largo": 2816,
     "jefe": 1,
 
@@ -94,16 +94,11 @@ NIVEL = {
 
     # Ambientación (solo para el dibujo). Capas de parallax de la más lejana a la más cercana.
     "ambiente": {
-        "cielo": [(40, 120, 176), (150, 210, 200)],
-        "capas": [
-            {"tipo": "montanas", "color": (60, 110, 120), "factor": 0.15, "base": 150, "alto": 60},
-            {"tipo": "colinas", "color": (30, 100, 60), "factor": 0.35, "base": 170, "alto": 40},
-            {"tipo": "arboles", "color": (16, 70, 36), "factor": 0.6, "base": 196, "alto": 70},
-            {"tipo": "lianas", "color": (24, 90, 44), "factor": 0.8, "base": 24, "alto": 50},
-        ],
+        "paisaje": "vichada",                                    # render/paisajes.py
+        "cielo": [(46, 112, 126), (232, 214, 150)],
+        "estilo": "selva",                                       # cómo se pinta el suelo
         "decoracion": {
-            "nubes": {"color": (235, 245, 245), "y": 30, "velocidad": 6},
-            "animales": "aves",
+            "rayos": True,
             "particulas": "luciernagas",
             "adornos": ["pasto", "flor", "helecho", "pasto"],
         },

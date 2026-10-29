@@ -8,7 +8,7 @@ SUELO = 192
 
 NIVEL = {
     "numero": 2,
-    "nombre": "LA CIUDAD",
+    "nombre": "MEDELLÍN",
     "largo": 3072,
     "jefe": 2,
 
@@ -102,22 +102,17 @@ NIVEL = {
     "tutorial": [],
 
     "ambiente": {
-        "cielo": [(30, 30, 70), (200, 110, 90)],                 # atardecer
-        "capas": [
-            {"tipo": "edificios", "color": (44, 44, 84), "factor": 0.15, "base": 170, "alto": 110},
-            {"tipo": "edificios", "color": (64, 60, 96), "factor": 0.35, "base": 186, "alto": 80},
-            {"tipo": "edificios", "color": (36, 34, 56), "factor": 0.6, "base": 200, "alto": 56},
-        ],
+        "paisaje": "medellin",                                   # render/paisajes.py
+        "cielo": [(16, 8, 30), (176, 84, 66)],
+        "estilo": "ciudad",                                      # cómo se pinta el suelo
         "decoracion": {
-            "astro": {"tipo": "luna", "x": 46, "y": 54, "radio": 11, "color": (240, 236, 210)},
-            "nubes": {"color": (110, 70, 110), "y": 66, "velocidad": 4},
+            "lluvia": True,
             "animales": "helicoptero",
-            "neones": True,
             "adornos": ["farol", "hidrante", "basurero", "farol"],
         },
-        "suelo_borde": (150, 150, 160),                          # bordillo
-        "suelo": (70, 70, 78),                                   # asfalto
-        "suelo_detalle": (56, 56, 64),
-        "plataforma": (110, 110, 124),                           # andamio metálico
+        "suelo_borde": (150, 146, 156),                          # bordillo
+        "suelo": (74, 64, 74),                                   # asfalto
+        "suelo_detalle": (58, 50, 60),
+        "plataforma": (110, 108, 124),                           # andamio metálico
     },
 }

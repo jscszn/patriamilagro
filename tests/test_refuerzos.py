@@ -163,7 +163,7 @@ class TestVehiculos(BaseNivel):
         self.assertFalse(v.activo)                              # durante el aviso no daña ni recibe daño
         v.recibir_dano(5, self.estado)
         self.assertEqual(v.vida, settings.VEHICULOS["moto"]["vida"])
-        self.pasos(int(1.0 / DT))
+        self.pasos(int((settings.VEHICULOS["moto"]["aviso"] + 0.1) / DT))
         self.assertEqual(v.estado, "correr")
 
     def test_dron_se_pone_encima_y_dispara_hacia_abajo(self):
@@ -188,13 +188,13 @@ class TestVehiculos(BaseNivel):
 
     def test_moto_cruza_rapido_y_agacharse_esquiva_su_bala(self):
         v = self.con("moto", 250)
-        self.pasos(int(1.0 / DT))
+        self.pasos(int((settings.VEHICULOS["moto"]["aviso"] + 0.1) / DT))
         x0 = v.x
         balas = []
-        for _ in range(int(0.6 / DT)):
+        for _ in range(int(1.0 / DT)):
             self.pasos(1, acc(im.ABAJO))
             balas += [b for b in self.balas_enemigas() if b not in balas]
-        self.assertLess(v.x, x0 - 50)                                     # más de 100 px/s
+        self.assertLess(v.x, x0 - 80)                                     # más de 80 px/s
         self.assertGreater(settings.VEHICULOS["moto"]["velocidad"], settings.JUGADOR["velocidad"])
         self.assertTrue(balas)
         self.assertTrue(all(b.vy == 0 for b in balas))                    # dispara al frente
@@ -225,7 +225,7 @@ class TestVehiculos(BaseNivel):
         self.jugador.x = 60
         v = Vehiculo.crear("moto", 420, 192 - settings.VEHICULOS["moto"]["caja"][1], -1)
         self.estado.vehiculos.append(v)
-        for _ in range(int(3.2 / DT)):
+        for _ in range(int((settings.VEHICULOS["moto"]["aviso"] + 3.0) / DT)):
             self.jugador.invulnerable = 1.0
             self.estado.update(DT, {1: NADA})
             if v not in self.estado.vehiculos:

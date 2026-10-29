@@ -1,11 +1,16 @@
-"""Grafo del país: las zonas donde ocurre la historia y las vías que las unen.
+"""Grafo del país: las zonas de Colombia donde ocurre la historia y las vías que las unen.
 
-Vértices = zonas. Aristas = vías, con un peso = PELIGRO de la vía (retenes, emboscadas).
-Es un grafo no dirigido y ponderado (core/grafo.py). Es el único grafo del juego.
+Vértices = zonas (con su latitud y longitud reales). Aristas = vías, con un peso = PELIGRO de
+la vía (retenes, emboscadas). Es un grafo no dirigido y ponderado (core/grafo.py). Es el único
+grafo del juego, y se dibuja sobre el mapa de Colombia (render/mapa_colombia.py).
+
+El recorrido del presidente cruza el país de sur a norte:
+    BOGOTÁ (el palacio) -> la selva del VICHADA (nivel 1) -> MEDELLÍN (nivel 2) -> LA GUAJIRA (nivel 3)
 
 Qué resuelve:
-  1. LA RUTA DEL PRESIDENTE. Antes de cada nivel hay que llegar del palacio a la zona del jefe,
-     y el grafo ofrece dos caminos calculados con dos algoritmos distintos:
+  1. LA RUTA DEL PRESIDENTE. Antes de cada nivel hay que llegar de donde está (el palacio al
+     empezar; después, la zona del jefe anterior) a la zona del jefe, y el grafo ofrece dos
+     caminos calculados con dos algoritmos distintos:
        - RUTA SEGURA: la de menor peligro total (Dijkstra sobre los pesos).
        - RUTA CORTA:  la de menos tramos (BFS, que no mira los pesos).
      El jugador elige y eso cambia el nivel: una ruta peligrosa trae más refuerzos enemigos; una
@@ -28,32 +33,36 @@ from core.decision_tree import EXTRADITAR, LIBERAR
 from core.grafo import Grafo
 
 PALACIO = "capital"
-# zona: (nombre, (x, fila)). x en píxeles sobre un mapa de 232 de ancho; fila de 0 (arriba) a 2
-# (abajo), con decimales. Las posiciones salieron de una búsqueda (el mapa es muy plano, así que
-# a ojo las vías se enciman): ninguna vía cruza otra y, en todas las parejas de rutas segura /
-# corta que salen al jugar, las dos se abren al menos 17 grados al separarse y al juntarse.
-ZONAS: Dict[str, Tuple[str, Tuple[float, float]]] = {
-    "capital": ("PALACIO", (8, 1.0)),
-    "sierra": ("LA SIERRA", (89, 0.05)),
-    "llanos": ("LOS LLANOS", (52, 1.51)),
-    "puerto": ("EL PUERTO", (105, 0.72)),
-    "selva": ("LA SELVA", (49, 2.0)),
-    "ciudad": ("LA CIUDAD", (103, 1.2)),
-    "desierto": ("EL DESIERTO", (217, 2.0)),
-    "frontera": ("LA FRONTERA", (170, 0.74)),
+# zona: (nombre, nombre corto para el mapa, (longitud, latitud)). Posiciones reales; en el mapa
+# ninguna vía cruza otra y, en todas las parejas de rutas segura / corta que salen al jugar, las
+# dos se abren al menos 15 grados al separarse y al juntarse (tests/test_grafos.py).
+ZONAS: Dict[str, Tuple[str, str, Tuple[float, float]]] = {
+    "capital": ("BOGOTÁ", "BOGOTÁ", (-74.08, 4.60)),                # Casa de Nariño
+    "llanos": ("EL META", "META", (-73.00, 3.00)),
+    "selva": ("EL VICHADA", "VICHADA", (-69.50, 3.50)),             # la selva de La Vorágine
+    "casanare": ("CASANARE", "CASANARE", (-72.40, 5.35)),
+    "puerto": ("BARRANCABERMEJA", "BARRANCA", (-73.85, 7.07)),      # puerto petrolero del Magdalena
+    "ciudad": ("MEDELLÍN", "MEDELLÍN", (-75.57, 6.25)),
+    "caribe": ("CARTAGENA", "CARTAGENA", (-75.51, 10.39)),
+    "sierra": ("SANTA MARTA", "SANTA MARTA", (-74.20, 11.24)),
+    "frontera": ("LA GUAJIRA", "GUAJIRA", (-72.24, 11.38)),          # Maicao, la raya con Venezuela
 }
-# (zona, zona, peligro inicial de la vía). Las vías DIRECTAS desde el palacio son cortas pero
-# peligrosas: por eso la ruta corta y la ruta segura casi nunca coinciden.
+# (zona, zona, peligro inicial de la vía). Las vías DIRECTAS son cortas pero peligrosas: por
+# eso la ruta corta (BFS) y la ruta segura (Dijkstra) no coinciden en ningún nivel.
 VIAS = [
-    ("capital", "llanos", 1), ("capital", "sierra", 2), ("capital", "selva", 5), ("capital", "ciudad", 7),
-    ("llanos", "selva", 2), ("llanos", "ciudad", 4), ("sierra", "puerto", 2), ("sierra", "ciudad", 3),
-    ("sierra", "frontera", 7), ("selva", "ciudad", 2), ("selva", "desierto", 3), ("puerto", "ciudad", 2),
-    ("puerto", "frontera", 4), ("ciudad", "frontera", 3), ("ciudad", "desierto", 2), ("desierto", "frontera", 2),
+    ("capital", "llanos", 1), ("llanos", "selva", 2), ("capital", "selva", 6),
+    ("capital", "casanare", 2), ("casanare", "selva", 3), ("casanare", "puerto", 2),
+    ("capital", "puerto", 3), ("capital", "ciudad", 5), ("puerto", "ciudad", 2),
+    ("ciudad", "caribe", 3), ("caribe", "puerto", 3), ("caribe", "sierra", 2),
+    ("sierra", "frontera", 2), ("puerto", "sierra", 4), ("puerto", "frontera", 8),
 ]
 ZONA_NIVEL = {1: "selva", 2: "ciudad", 3: "frontera"}
+# De dónde sale el presidente hacia cada nivel: del palacio y luego de donde venció al jefe anterior
+ORIGEN_NIVEL = {1: PALACIO, 2: "selva", 3: "ciudad"}
 SEGURA, CORTA = "segura", "corta"
 NOMBRE_RUTA = {SEGURA: "RUTA SEGURA", CORTA: "RUTA CORTA"}
-REFUERZOS_MAXIMOS = {1: 1, 2: 2, 3: 3}    # tope de refuerzos extra: el nivel 1 se mantiene suave
+REFUERZOS_MAXIMOS = {1: 2, 2: 2, 3: 3}    # tope de refuerzos extra (con 1 en el nivel 1, un retén
+                                           # dejaba la ruta corta igual de "barata" que la segura)
 PELIGRO_POR_REFUERZO = 2                   # cada 2 puntos de peligro extra de la ruta, 1 refuerzo
 OPINION_POR_TRAMO = 3                      # puntos del pueblo que cuesta cada tramo de más
 ALCANCE_JEFE = 2                           # un jefe libre afecta las zonas a 2 saltos o menos
@@ -63,12 +72,12 @@ RETENES = (1, 2)                           # retenes ilegales al azar al empezar
 class Mapa:
     def __init__(self, semilla: int = 0, con_retenes: bool = True):
         self.grafo = Grafo(dirigido=False)
-        for zona, (nombre, pos) in ZONAS.items():
-            self.grafo.agregar_vertice(zona, nombre=nombre, pos=list(pos))
+        for zona, (nombre, corto, pos) in ZONAS.items():
+            self.grafo.agregar_vertice(zona, nombre=nombre, corto=corto, pos=list(pos))
         for a, b, peligro in VIAS:
             self.grafo.agregar_arista(a, b, peligro)
         # Peligro de la ruta segura con el mapa "limpio": contra esto se mide el peligro extra
-        self.costo_base = {n: self.grafo.camino_mas_barato(PALACIO, z)[0] for n, z in ZONA_NIVEL.items()}
+        self.costo_base = {n: self.grafo.camino_mas_barato(ORIGEN_NIVEL[n], z)[0] for n, z in ZONA_NIVEL.items()}
         self.jefes_libres: List[str] = []           # zonas cuyo jefe quedó libre
         self.retenes: List[List[str]] = []          # vías con retén ilegal (evento aleatorio)
         self.rng = random.Random(semilla * 7 + 3)
@@ -82,9 +91,18 @@ class Mapa:
     def nombre(self, zona: str) -> str:
         return self.grafo.datos[zona]["nombre"]
 
+    def corto(self, zona: str) -> str:
+        """Nombre corto, el que se escribe sobre el mapa."""
+        datos = self.grafo.datos[zona]
+        return datos.get("corto", datos["nombre"])
+
+    @staticmethod
+    def origen(nivel: int) -> str:
+        return ORIGEN_NIVEL.get(nivel, PALACIO)
+
     def ruta(self, nivel: int) -> Tuple[float, List[str]]:
-        """Camino menos peligroso del palacio a la zona del nivel (Dijkstra): (peligro, zonas)."""
-        return self.grafo.camino_mas_barato(PALACIO, ZONA_NIVEL[nivel])
+        """Camino menos peligroso del origen a la zona del nivel (Dijkstra): (peligro, zonas)."""
+        return self.grafo.camino_mas_barato(self.origen(nivel), ZONA_NIVEL[nivel])
 
     def influencia(self, nivel: int) -> List[List[str]]:
         """Zonas que sufren al jefe del nivel, por olas: [su zona], [a 1 salto], [a 2 saltos]."""
@@ -105,7 +123,7 @@ class Mapa:
     def rutas(self, nivel: int) -> Dict[str, dict]:
         """Las rutas entre las que elige el jugador. Siempre está la SEGURA; la CORTA solo
         aparece si de verdad tiene menos tramos. De cada una:
-            camino     zonas, del palacio a la zona del jefe
+            camino     zonas, del origen (palacio o jefe anterior) a la zona del jefe
             peligro    suma de los pesos de sus vías
             tramos     número de vías
             refuerzos  enemigos extra que trae al nivel
@@ -113,7 +131,7 @@ class Mapa:
         """
         destino = ZONA_NIVEL[nivel]
         _, segura = self.ruta(nivel)
-        corta = self.grafo.camino_con_menos_saltos(PALACIO, destino)
+        corta = self.grafo.camino_con_menos_saltos(self.origen(nivel), destino)
         caminos = {SEGURA: segura}
         if len(corta) < len(segura):
             caminos[CORTA] = corta

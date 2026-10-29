@@ -19,6 +19,7 @@ from typing import Dict, List, Tuple
 import pygame
 
 import settings
+from render import animacion
 from render.pixelart import GENERADORES
 
 RUTA_JSON = os.path.join(settings.RUTA_ASSETS, "sprites.json")
@@ -77,9 +78,12 @@ class GestorSprites:
                     cargadas["agachado"] = [self._aplastar(quieto[0], 0.6)]
                 # Las animaciones que el PNG no trae usan su base del PNG o "quieto",
                 # para no mezclar el estilo del PNG con el placeholder.
+                propias = set(cargadas)
                 for anim in set(anims) | {"quieto", "correr", "saltar", "disparar", "especial", "apuntar"}:
                     if anim not in cargadas:
                         cargadas[anim] = cargadas.get(anim.split("_")[0], quieto)
+                # Cuadros generados moviendo partes del dibujo (caminar, respirar...): render/animacion.py
+                animacion.completar(nombre, cargadas, propias)
                 anims = cargadas
         if not anims:
             anims = {"quieto": [self._caja_error()]}
@@ -169,9 +173,10 @@ class GestorSprites:
 
     def dibujar(self, sup: pygame.Surface, nombre: str, anim: str, t: float, centro_x: float, pie_y: float,
                 camara_x: float, voltear: bool = False, destello=None, dx: int = 0, contorno=None,
-                escala=(1.0, 1.0)) -> None:
+                escala=(1.0, 1.0), tinte=None) -> None:
         """Dibuja el sprite con su ancla (los pies) en (centro_x, pie_y) del mundo.
         destello: color opcional para dibujarlo como silueta (al recibir daño).
+        tinte: color que se SUMA al sprite (se aclara sin perder el dibujo: golpe recibido).
         escala: (x, y) para deformarlo (el jefe 2 agazapado), con el ancla en los mismos pies."""
         imagen = self.frame(nombre, anim, t, voltear)
         ax, ay = self.ancla(nombre, imagen, voltear)
@@ -188,3 +193,5 @@ class GestorSprites:
         if destello:
             imagen = self.silueta(imagen, destello)
         sup.blit(imagen, (x, y))
+        if tinte:
+            sup.blit(self.silueta(imagen, tinte), (x, y), special_flags=pygame.BLEND_RGB_ADD)

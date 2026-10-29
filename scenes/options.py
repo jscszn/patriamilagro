@@ -14,7 +14,7 @@ C = settings.COLORES
 
 
 class OptionsScene(Scene):
-    ITEMS = ["alto_contraste", "daltonismo", "volumen_musica", "volumen_efectos",
+    ITEMS = ["alto_contraste", "daltonismo", "crt", "volumen_musica", "volumen_efectos",
              "tutorial", "control", "volver"]
 
     def __init__(self, juego, **datos):
@@ -27,6 +27,7 @@ class OptionsScene(Scene):
         return [
             f"Alto contraste: {si_no(o['alto_contraste'])}",
             f"Daltonismo: {o['daltonismo'].upper()}",
+            f"Filtro CRT: {si_no(o.get('crt', False))}",
             f"Música: {o['volumen_musica']}",
             f"Efectos: {o['volumen_efectos']}",
             f"Tutorial: {si_no(o['tutorial'])}",
@@ -37,8 +38,8 @@ class OptionsScene(Scene):
     def _cambiar_valor(self, item: str, paso: int) -> None:
         """Modifica la opción seleccionada con IZQUIERDA/DERECHA o CONFIRMAR."""
         o = self.juego.opciones
-        if item in ("alto_contraste", "tutorial"):
-            o[item] = not o[item]
+        if item in ("alto_contraste", "tutorial", "crt"):
+            o[item] = not o.get(item, False)
         elif item == "daltonismo":
             modos = settings.MODOS_DALTONISMO
             o[item] = modos[(modos.index(o[item]) + paso) % len(modos)]
@@ -74,7 +75,7 @@ class OptionsScene(Scene):
         sup.fill((8, 8, 32))
         dibujar_marco(sup, pygame.Rect(16, 16, 224, 192))
         dibujar_texto(sup, "OPCIONES", (128, 24), C["amarillo"], 2, centrado=True)
-        self.lista.draw(sup, 128, 56, separacion=18, textos=self._textos())
+        self.lista.draw(sup, 128, 52, separacion=17, textos=self._textos())
         dibujar_texto(sup, "< > cambiar   Esc: guardar y volver", (128, 192), C["gris"], 1, centrado=True)
 
 

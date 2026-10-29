@@ -24,9 +24,11 @@ from scenes.ending import EndingScene
 from scenes.phone import PhoneScene
 from audio import gestor as audio
 from core.logros import GestorLogros
-from render.filtros import aplicar_daltonismo
+from render.filtros import aplicar_daltonismo, mascara_crt
+from render.transiciones import Transicion
 from render.texto import dibujar_texto
-from render.ui import dibujar_marco
+from render.ui import dibujar_marco, superficie_opaca
+from scenes.creditos import CreditosScene
 from scenes.help import HelpScene
 from scenes.historia import HistoriaScene
 from scenes.level import LevelScene
@@ -55,7 +57,7 @@ class Juego:
         self.opciones = settings.cargar_opciones()
         tam = (settings.ANCHO * settings.ESCALA_INICIAL, settings.ALTO * settings.ESCALA_INICIAL)
         self.ventana = pygame.display.set_mode(tam, pygame.RESIZABLE)
-        self.lienzo = pygame.Surface((settings.ANCHO, settings.ALTO))  # resolución interna
+        self.lienzo = superficie_opaca((settings.ANCHO, settings.ALTO))  # resolución interna, sin alfa
         self.reloj = pygame.time.Clock()
         self.entrada = InputManager()
         self.sprites = GestorSprites()
@@ -64,7 +66,9 @@ class Juego:
         self.audio.precargar()
         self.logros = GestorLogros(None if headless else settings.RUTA_LOGROS)
         self.avisos = []              # [logro, segundos en pantalla] de los logros recién ganados
-        self.fundido = 0.0            # > 0: fundido desde negro al cambiar de escena
+        self.transicion = Transicion(settings.DURACION_TRANSICION)   # cortina de rombos al cambiar de escena
+        self._tam_ventana = None
+        self._escalada = None         # imagen escalada a la ventana (se reutiliza mientras no cambie el tamaño)
         self.corriendo = True
         self.frames = 0
 
@@ -83,6 +87,7 @@ class Juego:
             "telefono": PhoneScene,
             "final": EndingScene,
             "logros": LogrosScene,
+            "creditos": CreditosScene,
         }.items():
             self.escenas.registrar(nombre, clase)
         self.escenas.cambiar(escena_inicial, **datos_escena)
@@ -144,18 +149,19 @@ class Juego:
             self._acumulador = 0.0
 
         self.escenas.draw(self.lienzo)
+        self.transicion.dibujar(self.lienzo)
         self._dibujar_avisos(self.lienzo)
-        if self.fundido > 0:
-            velo = pygame.Surface(self.lienzo.get_size())
-            velo.set_alpha(int(255 * self.fundido / settings.DURACION_FUNDIDO))
-            self.lienzo.blit(velo, (0, 0))
         aplicar_daltonismo(self.lienzo, self.opciones.get("daltonismo", "ninguno"))
         self._presentar()
         self.frames += 1
 
+    def iniciar_transicion(self) -> None:
+        """La escena cambió: la cortina parte del último cuadro que se vio."""
+        self.transicion.iniciar(self.lienzo)
+
     # --- Logros: aviso en pantalla ---------------------------------------------------
     def _actualizar_avisos(self, dt: float) -> None:
-        self.fundido = max(0.0, self.fundido - dt)
+        self.transicion.avanzar(dt)
         for logro in self.logros.extraer_nuevos():
             self.avisos.append([logro, 3.5])
             self.audio.efecto("logro")
@@ -175,13 +181,20 @@ class Juego:
         dibujar_texto(sup, logro.titulo, (128, caja.y + 14), settings.COLORES["blanco"], centrado=True)
 
     def _presentar(self) -> None:
-        """Escala el lienzo a la ventana con un factor entero (pixel art nítido) y bandas negras."""
+        """Escala el lienzo a la ventana con un factor entero (pixel art nítido) y bandas negras.
+        La imagen escalada se reutiliza (no se crea una por cuadro) y las bandas solo se pintan
+        cuando cambia el tamaño de la ventana."""
         ancho_v, alto_v = self.ventana.get_size()
         escala = max(1, min(ancho_v // settings.ANCHO, alto_v // settings.ALTO))
         tam = (settings.ANCHO * escala, settings.ALTO * escala)
-        self.ventana.fill((0, 0, 0))
-        imagen = pygame.transform.scale(self.lienzo, tam)  # vecino más cercano: sin suavizado
-        self.ventana.blit(imagen, ((ancho_v - tam[0]) // 2, (alto_v - tam[1]) // 2))
+        if self._escalada is None or self._escalada.get_size() != tam or self._tam_ventana != (ancho_v, alto_v):
+            self._escalada = superficie_opaca(tam)
+            self._tam_ventana = (ancho_v, alto_v)
+            self.ventana.fill((0, 0, 0))
+        pygame.transform.scale(self.lienzo, tam, self._escalada)  # vecino más cercano: sin suavizado
+        if self.opciones.get("crt", False):
+            self._escalada.blit(mascara_crt(tam[0], tam[1], escala), (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        self.ventana.blit(self._escalada, ((ancho_v - tam[0]) // 2, (alto_v - tam[1]) // 2))
         pygame.display.flip()
 
     def ejecutar(self, max_frames: int = None) -> None:

@@ -103,7 +103,7 @@ class TestPantallaFinal(unittest.TestCase):
         p = self.escena.partida
         p.jefes_derrotados = ["LA SOMBRA DE LA RAYA"] * 3
         p.mapa.jefes_libres = ["selva", "ciudad", "frontera"]
-        p.mapa.retenes = [["desierto", "frontera"], ["capital", "desierto"]]
+        p.mapa.retenes = [["caribe", "puerto"], ["casanare", "puerto"]]
         for n in (1, 2, 3):
             p.rutas[n] = {"clave": "segura", "peligro": 12, "refuerzos": 3}
         fondo = (8, 8, 24)

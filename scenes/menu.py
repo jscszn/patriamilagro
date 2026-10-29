@@ -1,4 +1,4 @@
-"""Menú principal: Jugar, Ayuda, Opciones, Logros, Salir.
+"""Menú principal: Jugar, Ayuda, Opciones, Logros, Créditos, Salir.
 
 Composición "épica": atardecer con un sol rayado detrás del presidente (busto con contraluz
 que se disuelve en píxeles sobre la bandera), rayos de luz girando y el título a la derecha.
@@ -13,7 +13,7 @@ import input_manager as im
 import settings
 from audio import gestor as audio
 from render.texto import dibujar_texto, fuente
-from render.ui import ListaOpciones
+from render.ui import ListaOpciones, superficie_opaca
 from scenes.base import Scene
 
 C = settings.COLORES
@@ -39,7 +39,7 @@ def _color_cielo(y: int):
 
 
 class MenuScene(Scene):
-    OPCIONES = ["JUGAR", "AYUDA", "OPCIONES", "LOGROS", "SALIR"]
+    OPCIONES = ["JUGAR", "AYUDA", "OPCIONES", "LOGROS", "CRÉDITOS", "SALIR"]
 
     def __init__(self, juego, **datos):
         super().__init__(juego, **datos)
@@ -49,6 +49,9 @@ class MenuScene(Scene):
         self.busto = juego.sprites.frame("presidente_menu", "quieto", 0)
         self.contraluz = self._contraluz(self.busto)
         self.titulos = [self._titulo("PATRIA", C["amarillo"]), self._titulo("MILAGRO", C["rojo"])]
+        self.brillos = [pygame.mask.from_surface(t, 200).to_surface(setcolor=(255, 255, 255, 200), unsetcolor=(0, 0, 0, 0))
+                        for t in self.titulos]
+        self._capa_rayos = pygame.Surface((settings.ANCHO, settings.ALTO), pygame.SRCALPHA)
         # Primero "Bienvenido a la Patria Milagro"; el himno arranca cuando termina la frase
         audio.presentar("bienvenida", "menu")
 
@@ -70,6 +73,8 @@ class MenuScene(Scene):
                 self.juego.escenas.cambiar("opciones")
             elif eleccion == "LOGROS":
                 self.juego.escenas.cambiar("logros")
+            elif eleccion == "CRÉDITOS":
+                self.juego.escenas.cambiar("creditos")
             elif eleccion == "SALIR":
                 self.juego.salir()
 
@@ -77,7 +82,7 @@ class MenuScene(Scene):
     @staticmethod
     def _pintar_fondo() -> pygame.Surface:
         """Cielo de atardecer, sol rayado y cerros en silueta (se dibujan una sola vez)."""
-        sup = pygame.Surface((settings.ANCHO, settings.ALTO))
+        sup = superficie_opaca((settings.ANCHO, settings.ALTO))
         for y in range(settings.ALTO):
             pygame.draw.line(sup, _color_cielo(y), (0, y), (settings.ANCHO, y))
         # Sol con halo y franjas (estilo retro)
@@ -143,7 +148,7 @@ class MenuScene(Scene):
         self._bandera(sup)
         self._dibujar_titulo(sup)
         if self.tiempo > INTRO * 0.6:
-            self.lista.draw(sup, COLUMNA, 94, separacion=12)
+            self.lista.draw(sup, COLUMNA, 92, separacion=12)
         control = self.juego.entrada.nombre_control()
         estado = f"CONTROL: {control[:20]}" if control else "FLECHAS, Z, X, ENTER"
         dibujar_texto(sup, estado, (COLUMNA, 168), (210, 200, 220), centrado=True)
@@ -156,7 +161,8 @@ class MenuScene(Scene):
 
     def _rayos(self, sup):
         """Rayos de luz que salen del sol y giran lentamente."""
-        capa = pygame.Surface((settings.ANCHO, settings.ALTO), pygame.SRCALPHA)
+        capa = self._capa_rayos
+        capa.fill((0, 0, 0, 0))
         for i in range(10):
             ang = self.tiempo * 0.12 + i * math.tau / 10
             puntos = [SOL] + [(SOL[0] + math.cos(a) * 260, SOL[1] + math.sin(a) * 260) for a in (ang - 0.09, ang + 0.09)]
@@ -181,8 +187,7 @@ class MenuScene(Scene):
             # Destello: una franja blanca diagonal que cruza el título cada 5 segundos
             fase = (self.tiempo % 5.0) / 0.8
             if fase < 1:
-                brillo = pygame.mask.from_surface(titulo, 200).to_surface(setcolor=(255, 255, 255, 200),
-                                                                         unsetcolor=(0, 0, 0, 0))
+                brillo = self.brillos[i]
                 franja_x = int(rect.x - 20 + fase * (rect.w + 40)) + i * 6
                 sup.set_clip(pygame.Rect(franja_x, rect.y, 6, rect.h))
                 sup.blit(brillo, rect)

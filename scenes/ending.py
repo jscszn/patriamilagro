@@ -24,7 +24,7 @@ from core.decision_tree import FINALES, final_de
 from render import arbol_visual as av
 from core.mapa import NOMBRE_RUTA
 from render.grafo_visual import dibujar_mapa
-from render.ui import dibujar_marco
+from render.ui import dibujar_marco, superficie_opaca
 from render.hud import COLORES_OPINION, ETIQUETAS_OPINION
 from render.texto import dibujar_parrafo, dibujar_texto
 from scenes.base import Scene
@@ -37,6 +37,7 @@ MODOS = [("ruta", "RUTA ELEGIDA"), ("preorden", "PREORDEN"), ("bfs", "BFS"),
 PASO_ANIMACION = {"preorden": 0.12, "bfs": 0.12, "hoja_raiz": 0.6}
 AREA_ARBOL = pygame.Rect(8, 38, 240, 104)
 LIMITE_CONTENIDO = 198       # nada de las páginas baja de aquí: debajo va el pie de navegación
+COLOR_NIVEL = {1: (110, 230, 120), 2: (110, 200, 255), 3: (255, 214, 80)}   # el tramo de cada nivel en el mapa
 RUTA_CAPTURAS = os.path.join(settings.RUTA_BASE, "capturas")
 
 
@@ -111,7 +112,7 @@ class EndingScene(Scene):
         """capturas/arbol_<fecha>.png (página del árbol x4) y .json (partida y árbol)."""
         os.makedirs(RUTA_CAPTURAS, exist_ok=True)
         base = os.path.join(RUTA_CAPTURAS, "arbol_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
-        lienzo = pygame.Surface((settings.ANCHO, settings.ALTO))
+        lienzo = superficie_opaca((settings.ANCHO, settings.ALTO))
         modo, pagina = self.modo, self.pagina
         self.modo, self.pagina = 0, 1
         self.draw(lienzo)
@@ -218,28 +219,33 @@ class EndingScene(Scene):
         dibujar_texto(sup, info, (10, LIMITE_CONTENIDO - 9), C["blanco"], sombra=False)
 
     def _grafos(self, sup):
-        """Cómo dejaron las decisiones al grafo del país y por dónde viajó el presidente."""
+        """El recorrido del presidente por Colombia (un color por nivel) y cómo dejaron sus
+        decisiones al grafo del país."""
         mapa = self.partida.mapa
-        dibujar_texto(sup, "GRAFO: EL PAÍS DESPUÉS DE TUS DECISIONES", (128, 4), C["amarillo"], centrado=True)
-        area = pygame.Rect(8, 16, 240, 102)
+        dibujar_texto(sup, "GRAFO: TU RECORRIDO POR EL PAÍS", (128, 4), C["amarillo"], centrado=True)
+        area = pygame.Rect(8, 16, 240, 116)
         dibujar_marco(sup, area, fondo=(16, 20, 40))
-        dibujar_mapa(sup, mapa, area.inflate(-8, -8), tiempo=self.tiempo)
-        dibujar_texto(sup, "NÚMERO = PELIGRO DE LA VÍA", (14, area.bottom - 14), C["gris"], sombra=False)
-        dibujar_texto(sup, f"SEMILLA {self.partida.semilla}", (area.right - 6, area.bottom - 14), C["gris"],
-                      sombra=False, derecha=True)
-        y = area.bottom + 5
-        for nivel in sorted(self.partida.rutas):               # la ruta elegida hacia cada nivel
+        niveles = sorted(n for n in self.partida.rutas if n in COLOR_NIVEL and "camino" in self.partida.rutas[n])
+        recorrido = [self.partida.rutas[n]["camino"] for n in niveles]
+        enfoque = sorted({z for camino in recorrido for z in camino}) or None
+        dibujar_mapa(sup, mapa, area.inflate(-4, -4), tiempo=self.tiempo, recorrido=recorrido,
+                     colores_recorrido=[COLOR_NIVEL[n] for n in niveles], enfoque=enfoque, simple=True)
+        y = area.bottom + 4
+        for nivel in niveles:                                  # la ruta elegida hacia cada nivel
             r = self.partida.rutas[nivel]
-            dibujar_texto(sup, f"N{nivel} {NOMBRE_RUTA[r['clave']]}", (10, y), C["cian"])
-            dibujar_texto(sup, f"PELIGRO {r['peligro']}  REFUERZOS +{r['refuerzos']}", (246, y), C["blanco"],
-                          derecha=True)
-            y += 11
-        def corto(zona):                                       # "LA CIUDAD" -> "CIUDAD", como en el mapa
-            return mapa.nombre(zona).split(" ", 1)[-1] if " " in mapa.nombre(zona) else mapa.nombre(zona)
-        libres = ", ".join(corto(z) for z in mapa.jefes_libres) or "NINGUNO"
-        retenes = ", ".join(f"{corto(a)}-{corto(b)}" for a, b in mapa.retenes) or "NINGUNO"
-        y = dibujar_parrafo(sup, f"LIBRES (X): {libres}.", (10, y + 4), 236, C["naranja"], interlineado=1)
-        dibujar_parrafo(sup, f"RETENES AL AZAR (ROJO): {retenes}.", (10, y + 3), 236, C["rojo"], interlineado=1)
+            pygame.draw.rect(sup, (12, 10, 18), (9, y + 2, 12, 5))
+            pygame.draw.rect(sup, COLOR_NIVEL[nivel], (10, y + 3, 10, 3))
+            destino = mapa.corto(r["camino"][-1]) if r.get("camino") else ""
+            dibujar_texto(sup, f"N{nivel} {destino}", (25, y), COLOR_NIVEL[nivel])
+            dibujar_texto(sup, f"{NOMBRE_RUTA[r['clave']].replace('RUTA ', '')}  PELIGRO {r['peligro']}  +{r['refuerzos']}",
+                          (246, y), C["blanco"], derecha=True)
+            y += 10
+        libres = ", ".join(mapa.corto(z) for z in mapa.jefes_libres) or "NINGUNO"
+        retenes = ", ".join(f"{mapa.corto(a)}-{mapa.corto(b)}" for a, b in mapa.retenes) or "NINGUNO"
+        y = dibujar_parrafo(sup, f"JEFES LIBRES (X): {libres}.", (10, y + 2), 236, C["naranja"], interlineado=1)
+        dibujar_parrafo(sup, f"RETENES AL AZAR: {retenes}.", (10, y + 1), 236, C["gris"], interlineado=1)
+        dibujar_texto(sup, f"SEMILLA {self.partida.semilla}", (area.right - 4, area.bottom - 11), C["gris"],
+                      derecha=True, sombra=False)
 
     def _finales(self, sup):
         dibujar_texto(sup, "27 HOJAS, 5 FINALES", (128, 4), C["amarillo"], centrado=True)

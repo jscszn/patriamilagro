@@ -148,7 +148,7 @@ class TestIntegracion(unittest.TestCase):
         self.juego.aplicar_opciones()
         self.juego.escenas.cambiar("opciones")
         self.juego.escenas.aplicar_cambios()
-        for _ in range(2):                                     # bajar a "Música" (3.ª opción)
+        for _ in range(3):                                     # bajar a "Música" (4.ª opción)
             self.juego.entrada.simular(im.ABAJO)
             self.frames(2)
         antes = self.juego.audio.vol_musica

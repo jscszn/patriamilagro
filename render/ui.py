@@ -58,6 +58,16 @@ class ListaOpciones:
                                     [(punta[0] - 4, punta[1] - 3), (punta[0] - 4, punta[1] + 3), punta])
 
 
+def superficie_opaca(tam) -> pygame.Surface:
+    """Superficie de 32 bits SIN canal alfa, para dibujar la imagen del juego.
+
+    Sin máscara explícita, pygame copia el formato de la ventana, y en macOS la ventana tiene
+    canal alfa (ARGB). Entonces el alfa del lienzo queda en 0 tras algunos blits, y al pegar
+    encima una imagen con transparencia y set_alpha() (haces de luz, velos) SDL mezcla contra
+    ese 0 y el resultado sale NEGRO. Con un lienzo sin alfa, las mezclas son las normales."""
+    return pygame.Surface(tam, 0, 32, (0xFF0000, 0x00FF00, 0x0000FF, 0))
+
+
 def dibujar_marco(superficie: pygame.Surface, rect: pygame.Rect,
                   fondo=(0, 0, 40), borde=C["blanco"]) -> None:
     """Recuadro estilo NES con borde doble."""
@@ -66,8 +76,14 @@ def dibujar_marco(superficie: pygame.Surface, rect: pygame.Rect,
     pygame.draw.rect(superficie, C["gris"], rect.inflate(-4, -4), 1)
 
 
+_velos = {}
+
+
 def oscurecer(superficie: pygame.Surface, alfa: int = 160) -> None:
     """Cubre la pantalla con negro semitransparente (para menús superpuestos)."""
-    velo = pygame.Surface(superficie.get_size(), pygame.SRCALPHA)
-    velo.fill((0, 0, 0, alfa))
+    velo = _velos.get((superficie.get_size(), alfa))
+    if velo is None:
+        velo = pygame.Surface(superficie.get_size(), pygame.SRCALPHA)
+        velo.fill((0, 0, 0, alfa))
+        _velos[(superficie.get_size(), alfa)] = velo
     superficie.blit(velo, (0, 0))

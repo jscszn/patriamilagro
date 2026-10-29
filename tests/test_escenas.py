@@ -43,11 +43,8 @@ class TestEscenas(unittest.TestCase):
         self.pulsar(im.ABAJO)
         self.pulsar(im.CONFIRMAR)                       # OPCIONES (3.ª: JUGAR, AYUDA, OPCIONES, ...)
         self.assertEqual(self.nombre_actual(), "OptionsScene")
-        self.pulsar(im.ABAJO)
-        self.pulsar(im.ABAJO)
-        self.pulsar(im.ABAJO)
-        self.pulsar(im.ABAJO)
-        self.pulsar(im.ABAJO)
+        for _ in range(6):                              # el 7.º ítem: Configurar control
+            self.pulsar(im.ABAJO)
         self.pulsar(im.CONFIRMAR)                       # Configurar control
         self.assertEqual(self.nombre_actual(), "RemapScene")
         for _ in range(60):

@@ -18,7 +18,7 @@ from audio import gestor as audio
 from core import historia
 from core.mapa import CORTA, NOMBRE_RUTA, SEGURA, ZONA_NIVEL
 from levels import cargar_nivel
-from render.grafo_visual import COLOR_OLA, COLOR_RUTA_ALTERNA, dibujar_mapa
+from render.grafo_visual import COLOR_CORTA, COLOR_OLA, COLOR_RUTA_ALTERNA, COLOR_SEGURA, dibujar_mapa
 from render.texto import dibujar_texto, envolver, fuente
 from render.ui import dibujar_marco
 from scenes.base import Scene
@@ -30,7 +30,7 @@ CAJA_TEXTO = pygame.Rect(8, 115, 240, 95)
 AREA_MAPA_RUTA = pygame.Rect(8, 23, 240, 114)
 CAJA_TEXTO_RUTA = pygame.Rect(8, 139, 240, 72)
 # Cada ruta tiene siempre su color; la elegida va gruesa y la otra punteada
-COLOR_RUTA = {SEGURA: C["cian"], CORTA: COLOR_RUTA_ALTERNA}
+COLOR_RUTA = {SEGURA: COLOR_SEGURA, CORTA: COLOR_CORTA}
 MARGEN_TEXTO = 5               # entre el borde del recuadro y el texto
 ANCHO_TEXTO = CAJA_TEXTO.w - 12
 OPACIDAD_JEFE = 105            # 0..255: el jefe detrás del texto
@@ -155,18 +155,25 @@ class HistoriaScene(Scene):
         dibujar_texto(sup, f"NIVEL {self.numero}: {self.datos_nivel['nombre']}", (8, 13), C["amarillo"])
 
         dibujar_marco(sup, self.area_mapa, fondo=(16, 20, 40))
-        interior = self.area_mapa.inflate(-8, -8)
+        interior = self.area_mapa.inflate(-4, -4)
+        interior.h -= 13                                        # abajo, la leyenda
+        # Lo que ya viajó el presidente en los niveles anteriores (en blanco)
+        recorrido = [self.partida.rutas[n]["camino"] for n in sorted(self.partida.rutas)
+                     if n < self.numero and "camino" in self.partida.rutas[n]]
         if self.pagina == 0:        # BFS: las olas de daño salen de la zona del jefe
             visibles = 1 + int(self.t_pagina / SEGUNDOS_POR_OLA)
+            enfoque = [z for ola in self.olas[:2] for z in ola]      # el jefe y sus vecinos
             dibujar_mapa(sup, self.mapa, interior, self.numero, olas=self.olas, olas_visibles=visibles,
-                         tiempo=self.tiempo, simple=True)
+                         tiempo=self.tiempo, simple=True, enfoque=enfoque)
         else:                       # la ruta elegida avanza tramo por tramo; la otra va punteada
             otra = next((c for c in self.claves if c != self.clave), None)
+            enfoque = {z for r in self.opciones.values() for z in r["camino"]}
             dibujar_mapa(sup, self.mapa, interior, self.numero, ruta=self.ruta,
                          tramos_ruta=self.t_ruta / SEGUNDOS_POR_TRAMO, tiempo=self.tiempo,
                          ruta_alterna=self.opciones[otra]["camino"] if otra else (), simple=True,
                          color_ruta=COLOR_RUTA[self.clave],
-                         color_alterna=COLOR_RUTA[otra] if otra else COLOR_RUTA_ALTERNA)
+                         color_alterna=COLOR_RUTA[otra] if otra else COLOR_RUTA_ALTERNA,
+                         recorrido=recorrido, enfoque=sorted(enfoque))
         self._leyenda(sup)
 
         dibujar_marco(sup, self.caja_texto)
@@ -208,6 +215,7 @@ class HistoriaScene(Scene):
     def _leyenda(self, sup):
         """Qué significan los colores del mapa en la página actual."""
         x, y = self.area_mapa.x + 6, self.area_mapa.bottom - 14
+        pygame.draw.rect(sup, (12, 14, 28), (self.area_mapa.x + 2, y - 2, self.area_mapa.w - 4, 12))
         if self.pagina == 0:
             for i, texto in enumerate(("JEFE", "1 SALTO", "2 SALTOS")):
                 pygame.draw.rect(sup, COLOR_OLA[i], (x, y + 2, 5, 5))

@@ -5,8 +5,6 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import pygame
 
-import settings
-
 
 class Scene:
     """Escena del juego. Cada pantalla (menú, nivel, teléfono...) hereda de esta clase."""
@@ -61,7 +59,7 @@ class SceneManager:
         self._pendiente = None
         if tipo == "cambiar":
             self.pila = [self.fabricas[nombre](self.juego, **datos)]
-            self.juego.fundido = settings.DURACION_FUNDIDO     # fundido desde negro
+            self.juego.iniciar_transicion()                     # cortina de rombos
         elif tipo == "apilar":
             self.pila.append(self.fabricas[nombre](self.juego, **datos))
         elif tipo == "desapilar" and len(self.pila) > 1:

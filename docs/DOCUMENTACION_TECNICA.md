@@ -71,8 +71,10 @@ main.py            Juego: ventana, bucle con paso fijo (DT = 1/60) y escalado
 settings.py        Constantes y opciones del jugador (config/opciones.json)
 input_manager.py   Teclado + gamepad -> acciones abstractas {id_jugador: EstadoAcciones}
 scenes/            Máquina de escenas (Scene + SceneManager con pila) y cada pantalla
-render/            Dibujo: sprites (PNG o placeholder), fondos, HUD, texto, UI, árbol, filtros
-audio/             Sonido sintetizado con numpy y gestor de reproducción
+render/            Dibujo: sprites (PNG o placeholder), animación por código, fondos, terreno,
+                   efectos, transiciones, HUD, texto, UI, árbol, filtros (daltonismo y CRT)
+audio/             Sonido sintetizado con numpy, partituras (musica_datos, himno_datos) y
+                   gestor de reproducción
 core/              Lógica pura y serializable: decision_tree (árbol), grafo, mapa, partida,
                    game_state, player, enemy, vehiculos, director, boss, bullet, fisica, news,
                    historia, logros, motivacion
@@ -80,7 +82,8 @@ net/               Multijugador: protocolo (mensajes), sesion (reglas), servidor
 levels/            Definición de los niveles como datos (suelo, plataformas, sicarios, power-ups)
 assets/            Recursos opcionales que reemplazan a los generados (ver assets/LEEME.txt)
 tools/             probar_control.py, procesar_sprites.py (arte IA -> sprites),
-                   limpiar_voz.py (audio) y simular_partidas.py (dificultad)
+                   limpiar_voz.py (audio), simular_partidas.py (dificultad) y
+                   simplificar_mapa.py (departamentos de Colombia -> assets/mapa/colombia.json)
 tests/             Pruebas unitarias
 docs/              lineamientos.pdf (enunciado del laboratorio)
 ```
@@ -127,20 +130,38 @@ colores del terreno). La última pantalla es la arena del jefe.
 
 | Nivel | Ambiente | Largo | Sicarios (por detrás) | Jefe |
 |---|---|---|---|---|
-| 1 | La selva | 2816 px | 19 (3) | El Jaguar del Monte |
-| 2 | La ciudad (atardecer, edificios, autos, andamios) | 3072 px | 33 (6) | Don Concreto |
-| 3 | La frontera (desierto, río, cerros, cactus) | 3328 px | 42 (8) | La Sombra de la Raya |
+| 1 | La selva del Vichada | 2816 px | 19 (3) | El Jaguar del Monte |
+| 2 | Medellín (de noche, años noventa) | 3072 px | 33 (6) | Don Concreto |
+| 3 | La Guajira (desierto amarillo, mar, rancherías) | 3328 px | 42 (8) | La Sombra de la Raya |
 
-Cada nivel tiene además **decoración animada**, definida en `ambiente["decoracion"]` de sus datos
-y dibujada en `render/fondos.py`:
+Cada nivel tiene su **paisaje** (`render/paisajes.py`, elegido en `ambiente["paisaje"]`): un cielo,
+cinco capas de parallax pintadas una vez (empalman sin costura al repetirse) y cosas vivas que se
+dibujan cuadro a cuadro entre las capas:
 
-| Nivel | Decoración |
+| Nivel | Paisaje |
 |---|---|
-| Selva | Lianas, nubes, bandada de aves, luciérnagas, pasto, flores y helechos |
-| Ciudad | Luna, nubes de atardecer, carteles de neón que parpadean, helicóptero con reflector, faroles, hidrantes y basureros |
-| Frontera | Sol rayado, buitres en círculo, plantas rodadoras, rocas, cactus pequeños y cráneos |
+| Vichada | La selva de *La Vorágine*: no se ve el cielo, todo es selva verde. Al fondo, una muralla de selva que la humedad vuelve neblina; después ceibas gigantes, troncos con matapalos y cambuches de la guerrilla; arriba, el dosel que se cierra ("la cárcel verde"). Vivo: lianas que se mecen, haces de luz, guacamayas, mariposas morpho, niebla, ojos que miran desde la espesura y luciérnagas |
+| Medellín | Noche de los años noventa: el valle de Aburrá con las comunas encendidas trepando las montañas, antenas, una cruz en el cerro, la aguja y la catedral de ladrillo con su rosetón, el metro elevado y edificios de ladrillo con rejas. Vivo: relámpagos, el tren que pasa, ventanas que se apagan, dos neones, un carro quemado que humea, el helicóptero con reflector y la llovizna |
+| La Guajira | A pleno sol: el mar turquesa, el Pilón de Azúcar, molinos de viento, dunas amarillas, salinas rosadas con flamencos, rancherías wayuu con chinchorros de colores, cardones, trupillos y un puesto de pimpinas de gasolina de contrabando. Vivo: aspas que giran, el mar que brilla, rodadoras y el aire caliente |
 
-Los adornos no chocan con nada; en alto contraste se omiten para no distraer.
+Menos es más: cada capa se funde un poco con el color del aire (`Paisaje.AIRE`, perspectiva
+atmosférica), así lo lejano se aleja y los personajes y las balas resaltan. Las capas se pintan
+una vez y se convierten al formato de la pantalla (blits rápidos).
+
+Encima, los adornos del suelo de `ambiente["decoracion"]` (pasto, faroles, rocas...). No chocan
+con nada; en alto contraste se omiten para no distraer.
+
+Además, cada nivel tiene su **atmósfera** (también en `ambiente`):
+- **Neblina:** las capas lejanas se funden con el color del cielo, más cerca de su base
+  (`Fondo._neblina`). Así se lee la profundidad.
+- **Selva:** haces de sol entre las copas (`"rayos"`). **Ciudad:** llovizna con salpicaduras
+  (`"lluvia"`). **Frontera:** el aire caliente ondula el horizonte (`"calor"`).
+- **Terreno pintado una sola vez** (`render/terreno.py`, estilo en `ambiente["estilo"]`): todo el
+  suelo del nivel queda en una superficie y al jugar se copia el pedazo visible (un blit por
+  cuadro en vez de cientos de baldosas). Selva: pasto que cuelga, vetas, piedras y raíces, y
+  tablones con musgo. Ciudad: bordillo, acera con juntas y grietas, muro de ladrillo con
+  alcantarillas, balcones de metal con cerchas, y los bloques son autos estacionados.
+  Frontera: crestas de arena, ondas, estratos rojizos, salientes de roca y barriles.
 
 El sicario es el mismo en los tres: la dificultad sale solo de cuántos hay y dónde aparecen.
 Los que entran por detrás persiguen al jugador y aceleran si quedan atrás.
@@ -386,7 +407,7 @@ Sirve dirigido o no dirigido, siempre ponderado; el juego lo usa no dirigido.
 posibles con costos distintos. Eso no cabe en un árbol (en un árbol hay un solo camino entre dos
 nodos) ni en una lista: hace falta una estructura con ciclos y pesos.
 
-**Por qué listas de adyacencia y no una matriz.** El mapa es disperso (8 zonas, 16 vías de 28
+**Por qué listas de adyacencia y no una matriz.** El mapa es disperso (9 zonas, 15 vías de 36
 posibles), los pesos cambian durante la partida y casi todo lo que se pregunta es "¿qué vecinos
 tiene esta zona?", que aquí cuesta O(grado) en vez de O(V). Además un diccionario por vértice
 guarda el peso junto al vecino, sin celdas vacías.
@@ -402,9 +423,20 @@ guarda el peso junto al vecino, sin celdas vacías.
 | Costo de un camino | `costo_de` | O(largo) | peligro de cada ruta |
 | Profundidad, componentes | `dfs`, `componentes` | O(V + E) | (disponibles y probadas) |
 
-### El mapa: 8 zonas y 16 vías, peso = peligro
-Palacio, sierra, llanos, puerto, selva, ciudad, desierto y frontera. Las vías directas desde el
-palacio son cortas pero peligrosas, así que la ruta corta y la segura casi nunca coinciden.
+### El mapa: 9 zonas reales de Colombia y 15 vías, peso = peligro
+Bogotá (el palacio), el Meta, el Vichada, Casanare, Barrancabermeja, Medellín, Cartagena, Santa
+Marta y La Guajira, cada una en su latitud y longitud reales (`core/mapa.py -> ZONAS`). El
+presidente **cruza el país de sur a norte**: cada nivel sale de donde terminó el anterior
+(`ORIGEN_NIVEL`): Bogotá → Vichada (nivel 1), Vichada → Medellín (nivel 2), Medellín → La Guajira
+(nivel 3). Las vías directas son cortas pero peligrosas, así que en los tres niveles la ruta corta
+y la segura son distintas (con el mapa limpio y con cualquier retén).
+
+Se dibuja sobre un **mapa de Colombia con relieve en pixel art** (`render/mapa_colombia.py`): los
+contornos reales de los 33 departamentos (DANE, simplificados con Douglas-Peucker por
+`tools/simplificar_mapa.py` en `assets/mapa/colombia.json`), un modelo de elevación con las tres
+cordilleras, la Sierra Nevada, Perijá, la Macarena y los volcanes, colores de atlas por altura y
+por región (Amazonía, llano, Pacífico, Caribe, desierto de La Guajira), sombreado de relieve,
+ríos principales, el mar con aguas someras y los países vecinos apagados.
 
 - **Qué resuelve:** cómo llega el presidente a cada nivel y qué le cuesta. Sin el grafo no
   habría elección de ruta, la dificultad sería una tabla fija y las decisiones del árbol no
@@ -415,15 +447,20 @@ palacio son cortas pero peligrosas, así que la ruta corta y la segura casi nunc
 - **Efecto de la ruta elegida** (`Partida.elegir_ruta`):
   - *Refuerzos:* por cada 2 puntos de peligro de más respecto a la ruta segura del mapa limpio
     llega 1 refuerzo enemigo extra al nivel, más 1 por cada jefe libre a 2 saltos o menos (tope
-    1, 2 y 3 según el nivel). Los agrega `core/director.py` al plan aleatorio.
+    2, 2 y 3 según el nivel). Los agrega `core/director.py` al plan aleatorio.
   - *Opinión:* cada tramo de más respecto a la ruta más corta resta 3 puntos al pueblo (el
     presidente llegó tarde). Se resta en el nodo actual del árbol.
 - **Daños del jefe (BFS por olas):** las zonas a 1 y 2 saltos de la zona de un jefe son las que
   alcanza su red; se ven en la primera página del informe.
 - **Azar:** al empezar la partida aparecen 1 o 2 *retenes ilegales* en vías al azar (+1 o +2).
 
-Ejemplo con el mapa limpio, nivel 1: segura = Palacio → Llanos → Selva (2 tramos, peligro 3, sin
-refuerzos, pueblo −3); corta = Palacio → Selva (1 tramo, peligro 5, +1 refuerzo, pueblo 0).
+Ejemplo con el mapa limpio:
+
+| Nivel | Ruta segura (Dijkstra) | Ruta corta (BFS) |
+|---|---|---|
+| 1 | Bogotá → Meta → Vichada: 2 tramos, peligro 3, sin refuerzos, pueblo −3 | Bogotá → Vichada: 1 tramo, peligro 6, +2 refuerzos |
+| 2 | Vichada → Casanare → Barrancabermeja → Medellín: peligro 7 | Vichada → Bogotá → Medellín: peligro 11, +2 |
+| 3 | Medellín → Cartagena → Santa Marta → La Guajira: peligro 7 | Medellín → Barrancabermeja → La Guajira: peligro 10, +2 |
 
 ### Cómo se integran el árbol y el grafo (`core/partida.py`)
 ```
@@ -435,18 +472,28 @@ elegir ruta ◄── Dijkstra y BFS ◄─────┘
 ```
 - Capturar o extraditar resta 1 al peligro de las vías de esa zona; extraditar además provoca
   represalias (+1) en otra vía al azar; liberar suma 2 y deja al jefe operando.
-- Con esos pesos nuevos, Dijkstra puede cambiar de camino: si se libera al jefe de la selva, la
-  ruta segura a la ciudad evita la selva.
+- Con esos pesos nuevos, Dijkstra puede cambiar de camino: si se libera a Don Concreto, la ruta
+  segura hacia el Vichada deja de pasar por Medellín; y salir de la zona de un jefe libre es más
+  peligroso.
 - La historia de cada nivel (`core/historia.py`) cambia según el camino del árbol y muestra lo
   que calculó el grafo.
 - Revocar la decisión elimina el nodo del árbol y restaura el mapa.
 
 ### Dónde se ve
-- **Informe del nivel** (`scenes/historia.py`): el mapa con el peso de cada vía. Página 1, las
-  olas del BFS desde la zona del jefe. Página 2, la ruta elegida resaltada y trazada tramo por
-  tramo, con la otra ruta más tenue; izquierda/derecha cambia de ruta y el texto dice su efecto.
-- **Pantalla final**, página GRAFOS: el mapa como quedó, la ruta elegida en cada nivel, jefes
-  libres y retenes. El JSON de `capturas/` guarda la semilla, el mapa y las rutas.
+- **Informe del nivel** (`scenes/historia.py`): el mapa arriba, **con zoom** sobre las zonas de la
+  pantalla (`render/mapa_colombia.encuadre`), y el texto abajo. El departamento del jefe late.
+  Página 1, las olas del BFS desde la zona del jefe (con los nombres del jefe y sus vecinos).
+  Página 2, solo las dos rutas: la segura en **cian** y la corta en **magenta** (colores que no
+  aparecen en el mapa), con borde oscuro; la elegida va sólida, se traza tramo por tramo y llega
+  con una flecha; la otra va punteada; solo esas vías llevan número. Izquierda/derecha cambia
+  de ruta. Lo ya recorrido en los niveles anteriores se ve en blanco.
+- **Pantalla final**, página GRAFOS: todo el recorrido con zoom, un color por nivel, el peso de
+  esas vías, jefes libres (X) y retenes.
+- Fuera de Colombia todo va apagado (mar azul oscuro con una cuadrícula de meridianos y
+  paralelos, países vecinos en gris pizarra) y el país lleva un contorno claro con sombra: se lee
+  solo, a cualquier zoom. Los nombres y los pesos usan una fuente pequeña de 3 x 5 px
+  (`render/fuente_mini.py`) y se colocan donde no tapen otro nombre, una zona ni una vía
+  (`tests/test_graficos.py` lo comprueba en todos los niveles). El JSON de `capturas/` guarda la semilla, el mapa y las rutas.
 
 `tests/test_grafos.py` cubre cada operación del grafo, las dos rutas y su efecto, y la unión con
 el árbol (incluida la revocación).
@@ -630,18 +677,31 @@ por nivel, el puntaje, el árbol de la partida (`to_dict()`), la semilla, el map
 
 ## Sonido (`audio/`)
 
-Casi todo el sonido se **sintetiza con numpy** al iniciar el juego, en estilo NES: ondas
-cuadradas y triangulares y ruido (`audio/sintesis.py`).
-- **18 efectos:** disparos, explosiones, golpe, salto, power-up, menús, sello de la decisión,
-  logro, alerta de refuerzos, suministro y tic del reloj.
-- **8 temas en bucle:** menú, un tema por nivel, jefe, decisión, noticias y final. Salvo el
-  menú, cada uno es una progresión de acordes tocada con bajo, arpegio, melodía y batería.
+Casi todo el sonido se **sintetiza con numpy** al iniciar el juego (≈1,3 s), en estilo NES:
+ondas de pulso, triángulo y ruido (`audio/sintesis.py`), a 44,1 kHz y en estéreo.
+- **Ondas limpias:** los pulsos son de banda limitada (PolyBLEP), sin el chirrido del aliasing;
+  el triángulo es escalonado como el de la NES. Al final, un filtro de salida circular (pasa
+  bajos suave y corte de graves extremos) y un limitador suave: nunca satura y los bucles
+  empalman sin clic.
+- **18 efectos** con capas (chasquido + tono + golpe grave; explosiones con un filtro que se
+  cierra): disparos, explosiones, golpe, salto, power-up, menús, sello de la decisión, logro,
+  alerta de refuerzos, suministro y tic del reloj. Los que se repiten mucho (disparos, impactos,
+  explosiones) tienen **variantes de tono** y un **tope de voces** (`gestor.MAX_VOCES`), así una
+  ráfaga no tapa el resto.
+- **8 temas en bucle, compuestos nota por nota** en `audio/musica_datos.py` (composición
+  original): selva (La menor, heroico), ciudad (Re dórico, bajo sincopado), frontera (Mi frigio,
+  a galope), jefe, decisión (con latido), noticias, final y una marcha de respaldo para el menú.
+  Cada tema tiene secciones A y B con melodía, acordes (arpegio), bajo y batería
+  (`"A4:2 C5:2 E5:4"` = notas en semicorcheas; cada compás suma 16). La melodía lleva vibrato en
+  las notas largas y un **eco en estéreo** de corchea con puntillo, como en la NES.
+- **2 fanfarrias** que no se repiten (`JINGLES`): victoria al derrotar al jefe (cabe en los 3 s
+  antes de la decisión) y game over.
 - **Menú: el Himno Nacional de Colombia en versión arcade** (58 s: introducción y coro). Suena
   **solo la melodía** (onda cuadrada) **y un bajo** de marcha (onda triangular); el bajo se apaga
   con `settings.HIMNO_CON_BAJO = False`. Las notas están **escritas a mano** en
   `audio/himno_datos.py`, compás por compás y en Do mayor para que se lean fácil
   (`"C5@0+1.5"` = Do, empieza en el pulso 0, dura pulso y medio); `TRANSPORTE` las lleva a Mi
-  bemol mayor. Las toca `sintesis.himno()`. La música es de Oreste Síndici (1887), de dominio
+  bemol mayor. Las toca `sintesis.himno()`, con vibrato en las notas largas y un eco suave. La música es de Oreste Síndici (1887), de dominio
   público; la melodía se cotejó con una partitura para flauta publicada en flutetunes.com.
   Para usar otra grabación, basta poner `assets/sonidos/musica_menu.ogg`.
 - **Voz: "Bienvenido a la Patria Milagro"** (`assets/sonidos/bienvenida.wav`, 2,5 s). El clip
@@ -664,6 +724,9 @@ silencio.
 
 ## Accesibilidad e inclusividad
 
+- **Filtro CRT** (Opciones, apagado por defecto): líneas de barrido, rejilla de fósforo suave y
+  esquinas oscurecidas, como un televisor de tubo (`render/filtros.mascara_crt`). Es una capa que
+  se multiplica sobre la imagen ya escalada y se calcula una vez por tamaño de ventana.
 - **Alto contraste** (Opciones): oscurece el fondo, pone un contorno blanco al presidente y uno
   amarillo a los enemigos, un aro a las balas enemigas y bordes blancos al suelo y las plataformas.
 - **Filtro de daltonismo** (Opciones: protanopia, deuteranopia, tritanopia). Usa
@@ -686,7 +749,21 @@ silencio.
   aviso con sonido. Se consultan en el menú (LOGROS) y se guardan en `config/logros.json`.
 - **Mensajes de ánimo** (`core/motivacion.py`) al reaparecer, en la fase 2 del jefe, al vencerlo
   y en el game over.
-- Temblor de pantalla y cadena de explosiones al derrotar a un jefe, y fundido entre escenas.
+- Temblor de pantalla y cadena de explosiones al derrotar a un jefe, y cortina de rombos entre
+  escenas (`render/transiciones.py`).
+- **Respuesta a los golpes** (`render/efectos.py`, solo dibujo): bolas de fuego con núcleo
+  blanco que terminan en humo, onda expansiva y escombros; sicarios que salen despedidos
+  girando; casquillos que rebotan; polvo al saltar, aterrizar y correr; puntos que flotan
+  (+100); humo de los escapes y del blindaje roto; brillo en las balas enemigas y estela en las
+  propias; sombras bajo los pies; **pausa de impacto** (unos cuadros congelados al recibir un
+  golpe, destruir la camioneta o vencer al jefe); el jefe se aclara al recibir un impacto en vez
+  de volverse una silueta plana; y con un solo corazón, ese corazón parpadea en el HUD.
+- **Animación por código** (`render/animacion.py`): el PNG del sicario trae una sola pose; a
+  partir de ella se generan los pasos (las piernas se abren en tijera y el cuerpo rebota) y la
+  respiración. El presidente también corre apuntando arriba o en diagonal. Los **jefes no se
+  deforman** (con sus sacos largos, cortar el dibujo se veía como si se rompieran): se mueven
+  enteros, con un rebote al caminar y un culatazo de 1 px al disparar.
+- **Créditos** en el menú, con el equipo, la materia y el origen del arte y la música.
 
 ## Estado del desarrollo
 
@@ -703,6 +780,7 @@ silencio.
 - [x] (k) Multijugador local cliente-servidor con sockets, 2 a 4 jugadores con roles
 - [x] (l) Himno escrito a mano (melodía y bajo) y voz de bienvenida, que suena antes que la música
 - [x] (m) Dificultad de los niveles 2 y 3 ajustada en `levels/`, con simulador de partidas
+- [x] (n) Pulido gráfico y sonoro: animación por código, efectos, terreno y atmósfera por nivel, transiciones, CRT, créditos, música compuesta y síntesis de banda limitada
 
 ## Lineamientos del laboratorio (`docs/lineamientos.pdf`)
 

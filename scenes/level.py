@@ -1,13 +1,14 @@
 """Escena de nivel: conecta el estado lógico (core.game_state) con el dibujo y los efectos.
 
 La escena NO decide reglas del juego: llama a estado.update(dt, acciones) y luego dibuja.
-Los efectos visuales (partículas, temblor, mensajes) salen de los eventos del estado.
+Los efectos visuales (explosiones, casquillos, polvo, temblor, mensajes) salen de los eventos
+del estado; viven en render/efectos.py. La "pausa de impacto" (congelar unos cuadros al recibir
+o dar un golpe fuerte) también es solo de la vista: el estado no se entera.
 """
 from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass
 from typing import List
 
 import pygame
@@ -18,6 +19,8 @@ from audio import gestor as audio
 from core import motivacion
 from core.game_state import EstadoJuego
 from core.player import Jugador
+from render import efectos as fx
+from render.animacion import anim_correr_jugador
 from render.fondos import Fondo
 from render.hud import dibujar_hud
 from render.texto import dibujar_texto, fuente
@@ -26,7 +29,8 @@ from scenes.base import Scene
 
 C = settings.COLORES
 
-ANIM_JEFE = {"rafaga": "disparar", "abanico": "disparar", "dirigido": "disparar", "saltar": "saltar",
+ANIM_JEFE = {"rafaga": "disparar", "abanico": "disparar", "dirigido": "disparar", "barrido": "disparar",
+             "saltar": "saltar",
              "onda": "saltar", "embestida": "correr", "preparar": "especial", "invocar": "especial"}
 SPRITE_BALA = {"normal": "bala_enemigo", "jefe": "bala_jefe", "onda": "onda"}
 # Fogonazos en la boca del arma (efecto aparte: los sprites no lo traen dibujado)
@@ -40,18 +44,13 @@ SONIDO_EVENTO = {"disparo_jugador": "disparo_jugador", "disparo_enemigo": "dispa
 AVISO_VEHICULO = {"dron": "¡DRON ARMADO!", "moto": "¡SICARIOS EN MOTO!", "camioneta": "¡CAMIONETA BLINDADA!"}
 COLOR_FOGONAZO = {"disparo_jugador": (255, 240, 150), "disparo_enemigo": (255, 200, 60),
                   "disparo_jefe": (200, 120, 255)}
-
-
-@dataclass
-class Particula:
-    x: float
-    y: float
-    vx: float
-    vy: float
-    vida: float
-    color: tuple
-    tam: int = 2
-    gravedad: float = 0.0
+# Pausa de impacto (cuadros congelados) según el golpe
+CONGELAR = {"jugador_herido": 3, "jugador_muere": 6, "jefe_derrotado": 10, "camioneta": 4, "fase2": 6}
+# Piezas que se mueven sobre los sprites de los refuerzos (relativas al ancla, mirando a la derecha)
+HELICES_DRON = ((-14, -9), (14, -9))
+RUEDAS = {"moto": ((-14, -7, 4), (13, -7, 4)), "camioneta": ((-19, -6, 4), (19, -6, 4))}
+ESCAPE = {"moto": (-17, -10), "camioneta": (-37, -14)}
+COLOR_BALA_ENEMIGA = {"normal": (255, 170, 60), "jefe": (200, 110, 255), "onda": (255, 160, 80)}
 
 
 class LevelScene(Scene):
@@ -77,8 +76,16 @@ class LevelScene(Scene):
         juego = self.juego
         self.fondo = Fondo(self.estado.datos)
         self.sprites = juego.sprites
-        self.particulas: List[Particula] = []
+        self.rng = random.Random(numero)   # solo para efectos visuales, no afecta la lógica
+        self.efectos = fx.Efectos(self.rng)
         self.fogonazos: List[list] = []     # [x, y, tiempo_restante, color]
+        self.congelar = 0                   # cuadros de pausa de impacto que quedan
+        self._en_suelo = {}                 # id_jugador -> estaba en el suelo el paso anterior
+        self._t_polvo = 0.0
+        self._t_humo = 0.0
+        amb = self.estado.datos["ambiente"]
+        self.color_polvo = tuple(min(255, int(c * 0.55 + 100)) for c in amb["suelo"])
+        self._velo_negro = pygame.Surface((settings.ANCHO, settings.ALTO))
         self.temblor = 0.0
         self.fuerza_temblor = 0
         self.destello = 0.0
@@ -91,7 +98,6 @@ class LevelScene(Scene):
             if juego.opciones.get("tutorial", True) else []
         self.explosiones_jefe = 0.0
         self.menu_game_over = ListaOpciones(["REINTENTAR", "MENÚ PRINCIPAL"])
-        self.rng = random.Random(numero)   # solo para efectos visuales, no afecta la lógica
         self.muertes = 0                   # para el logro "intachable"
         self.golpes_en_arena = 0           # para el logro "intocable"
         self.aviso_fase2 = False
@@ -126,6 +132,9 @@ class LevelScene(Scene):
         if entrada.pulso(im.AYUDA):
             self.juego.escenas.apilar("ayuda", superpuesta=True)
             return
+        if self.congelar > 0:                 # pausa de impacto: todo quieto un instante
+            self.congelar -= 1
+            return
 
         self.estado.update(dt, acciones)
         for evento in self.estado.extraer_eventos():
@@ -137,6 +146,8 @@ class LevelScene(Scene):
         if jefe is not None and jefe.vivo and jefe.fase2 and not self.aviso_fase2:
             self.aviso_fase2 = True
             self.mensaje = (self.rng.choice(motivacion.FASE_2_JEFE), 2.0)
+            self.congelar = CONGELAR["fase2"]
+            self._temblar(3, 0.3)
 
         if self.estado.victoria:
             self.juego.logros.notificar("nivel_superado", vidas_perdidas=self.muertes)
@@ -150,31 +161,52 @@ class LevelScene(Scene):
         if tipo in SONIDO_EVENTO:
             audio.efecto(SONIDO_EVENTO[tipo])
         self._registrar_logros(e)
+        fx_ = self.efectos
         if tipo in COLOR_FOGONAZO:
             self.fogonazos.append([e["x"], e["y"], 0.07, COLOR_FOGONAZO[tipo]])
+            if tipo == "disparo_jugador":
+                self._casquillo(e["x"])
         elif tipo == "sicario_muere":
-            self._explosion(e["x"], e["y"], 10, [C["naranja"], C["amarillo"], C["rojo"]])
+            self._abatir_sicario(e)
         elif tipo in ("jugador_herido", "jugador_muere"):
             self.destello = 0.15
-            self._explosion(e["x"], e["y"], 14 if tipo == "jugador_muere" else 6, [C["blanco"], C["rojo"]])
+            fx_.chispas(e["x"], e["y"], 14 if tipo == "jugador_muere" else 6, [C["blanco"], C["rojo"]])
+            if tipo == "jugador_muere":
+                fx_.explosion(e["x"], e["y"], 1.0)
             self._temblar(2, 0.2)
-        elif tipo in ("impacto_jefe", "chispa"):
-            self._explosion(e["x"], e["y"], 2, [C["amarillo"], C["blanco"]], velocidad=40)
+            self.congelar = max(self.congelar, CONGELAR[tipo])
+        elif tipo == "impacto_jefe":
+            fx_.impacto(e["x"], e["y"], (255, 120, 80))
+        elif tipo == "chispa":
+            fx_.impacto(e["x"], e["y"])
         elif tipo == "temblor":
             self._temblar(e["fuerza"], 0.35)
+            jefe = self.estado.jefe
+            if jefe is not None:                              # aterrizaje pesado: polvo a los dos lados
+                fx_.polvo(jefe.centro[0] - jefe.ancho / 2, jefe.pie, 6, self.color_polvo, -1)
+                fx_.polvo(jefe.centro[0] + jefe.ancho / 2, jefe.pie, 6, self.color_polvo, 1)
         elif tipo == "arena":
             self.cartel = ("¡JEFE!", e["nombre"], 2.0)
             audio.musica("jefe")
         elif tipo == "jefe_derrotado":
             self.explosiones_jefe = 2.2
             self._temblar(6, 1.5)
+            self.congelar = CONGELAR["jefe_derrotado"]
+            fx_.explosion(e["x"], e["y"], 2.5)
+            jefe = self.estado.jefe
+            if jefe is not None:
+                fx_.flotante(e["x"], e["y"] - 40, f"+{settings.JEFES[jefe.tipo]['puntos']}", C["amarillo"])
             self.cartel = ("¡JEFE DERROTADO!", self.rng.choice(motivacion.NIVEL_SUPERADO), 3.0)
-            audio.musica(None)
+            audio.jingle("victoria")
         elif tipo == "game_over":
-            audio.musica(None)
+            audio.jingle("game_over")
         elif tipo == "powerup":
             self.mensaje = (settings.POWERUPS[e["clase"]]["mensaje"], 2.0)
-            self._explosion(e["x"] + 6, e["y"] + 6, 8, [C["cian"], C["blanco"]], velocidad=50)
+            fx_.chispas(e["x"] + 6, e["y"] + 6, 12, [C["cian"], C["blanco"], C["amarillo"]], velocidad=60, gravedad=40)
+            fx_.anillos.append(fx.Anillo(e["x"] + 6, e["y"] + 6, 16, 0.3, C["cian"]))
+            puntos = settings.POWERUPS[e["clase"]].get("puntos", 0)
+            if puntos:
+                fx_.flotante(e["x"] + 6, e["y"] - 4, f"+{puntos}", C["cian"])
         elif tipo == "aviso_vehiculo":
             self.mensaje = (AVISO_VEHICULO[e["clase"]], 1.8)
             self.avisos_borde.append([e["lado"], 1.2])
@@ -183,14 +215,22 @@ class LevelScene(Scene):
         elif tipo == "vehiculo_muere":
             grande = e["clase"] == "camioneta"
             audio.efecto("explosion_grande" if grande else "explosion")
-            self._explosion(e["x"], e["y"], 28 if grande else 12,
-                            [C["naranja"], C["amarillo"], C["blanco"], C["rojo"]], velocidad=130 if grande else 90)
+            fx_.explosion(e["x"], e["y"], 2.2 if grande else 1.2)
+            fx_.flotante(e["x"], e["y"] - 18, f"+{settings.VEHICULOS[e['clase']]['puntos']}", C["amarillo"])
             if grande:
                 self._temblar(4, 0.4)
+                self.congelar = max(self.congelar, CONGELAR["camioneta"])
+            else:
+                self._temblar(2, 0.15)
         elif tipo == "invocacion":
             self.mensaje = ("¡REFUERZOS!", 1.5)
         elif tipo == "onda_choque":
-            self._explosion(e["x"], e["y"], 8, [C["naranja"], C["gris"]], velocidad=60)
+            fx_.chispas(e["x"], e["y"], 8, [C["naranja"], C["gris"]], velocidad=60)
+            fx_.polvo(e["x"], e["y"], 8, self.color_polvo)
+        elif tipo == "salto":
+            j = self._jugador_cerca(e.get("x"))
+            if j is not None:
+                fx_.polvo(j.centro[0], j.pie, 4, self.color_polvo)
 
     def _registrar_logros(self, e: dict) -> None:
         """Avisa al gestor de logros y cuenta muertes y golpes en la arena."""
@@ -220,25 +260,64 @@ class LevelScene(Scene):
             self.mensaje = (self.tutorial_pendiente.pop(0)[1], 3.5)
 
     # --- Efectos ------------------------------------------------------------------------
-    def _explosion(self, x, y, cantidad, colores, velocidad=90.0):
-        for _ in range(cantidad):
-            ang = self.rng.uniform(0, math.tau)
-            v = self.rng.uniform(0.3, 1.0) * velocidad
-            self.particulas.append(Particula(x, y, math.cos(ang) * v, math.sin(ang) * v - 20,
-                                             self.rng.uniform(0.25, 0.6), self.rng.choice(colores),
-                                             self.rng.choice((1, 2, 2, 3)), 200.0))
+    def _jugador_cerca(self, x=None):
+        """El jugador más cercano a x (o el local si no se sabe dónde ocurrió)."""
+        activos = [j for j in self.estado.jugadores if j.activo]
+        if not activos:
+            return None
+        if x is None:
+            local = self.jugador_local()
+            return local if local.activo else activos[0]
+        return min(activos, key=lambda j: abs(j.centro[0] - x))
+
+    def _casquillo(self, x: float) -> None:
+        j = self._jugador_cerca(x)
+        if j is not None:
+            self.efectos.casquillo(j.centro[0] + j.mirando * 3, j.y + 14, j.mirando, j.pie)
+
+    def _abatir_sicario(self, e: dict) -> None:
+        """El sicario sale despedido (estilo arcade) con un estallido pequeño y sus puntos."""
+        mira = e.get("mira", 1)
+        imagen = self.sprites.frame("sicario", "quieto", 0, voltear=mira < 0)
+        ax, ay = self.sprites.ancla("sicario", imagen, mira < 0)
+        pie = e.get("pie", e["y"] + 20)
+        self.efectos.cuerpo(imagen, self.sprites.silueta(imagen), e["x"] - ax, pie - ay, e.get("golpe", -mira))
+        self.efectos.chispas(e["x"], e["y"], 8, [C["naranja"], C["amarillo"], C["rojo"]], velocidad=80)
+        self.efectos.anillos.append(fx.Anillo(e["x"], e["y"], 9, 0.16, (255, 230, 170)))
+        if e.get("puntos"):
+            self.efectos.flotante(e["x"], e["y"] - 16, f"+{e['puntos']}", C["blanco"])
+
+    def _efectos_continuos(self, dt: float) -> None:
+        """Polvo al aterrizar y al correr, humo de los escapes y del blindaje roto."""
+        fx_ = self.efectos
+        self._t_polvo -= dt
+        self._t_humo -= dt
+        for j in self.estado.jugadores:
+            antes = self._en_suelo.get(j.id_jugador, True)
+            if j.activo and j.en_suelo and not antes:
+                fx_.polvo(j.centro[0], j.pie, 6, self.color_polvo)
+            elif j.activo and j.en_suelo and abs(j.vx) > 1 and self._t_polvo <= 0:
+                fx_.polvo(j.centro[0] - j.mirando * 6, j.pie, 1, self.color_polvo, -j.mirando)
+            self._en_suelo[j.id_jugador] = j.en_suelo
+        if self._t_polvo <= 0:
+            self._t_polvo = 0.22
+        if self._t_humo <= 0:
+            self._t_humo = 0.09
+            for v in self.estado.vehiculos:
+                if v.estado == "aviso" or not v.vivo or v.clase not in ESCAPE:
+                    continue
+                ex, ey = ESCAPE[v.clase]
+                fx_.humo(v.centro[0] + ex * v.direccion, v.pie + ey, 1.6 + self.rng.random())
+                if v.clase == "camioneta" and v.vida <= v.vida_max // 2:    # motor herido: humo negro
+                    fx_.humo(v.centro[0] + 22 * v.direccion, v.pie - 30, 3 + self.rng.random() * 2)
 
     def _temblar(self, fuerza: int, duracion: float) -> None:
         self.fuerza_temblor = max(self.fuerza_temblor if self.temblor > 0 else 0, fuerza)
         self.temblor = max(self.temblor, duracion)
 
     def _actualizar_efectos(self, dt: float) -> None:
-        for p in self.particulas:
-            p.x += p.vx * dt
-            p.y += p.vy * dt
-            p.vy += p.gravedad * dt
-            p.vida -= dt
-        self.particulas = [p for p in self.particulas if p.vida > 0]
+        self.efectos.update(dt)
+        self._efectos_continuos(dt)
         for f in self.fogonazos:
             f[2] -= dt
         self.fogonazos = [f for f in self.fogonazos if f[2] > 0]
@@ -249,14 +328,15 @@ class LevelScene(Scene):
         self.avisos_borde = [a for a in self.avisos_borde if a[1] > 0]
         titulo, sub, t = self.cartel
         self.cartel = (titulo, sub, t - dt)
-        # Cadena de explosiones sobre el jefe derrotado (12 por segundo)
+        # Cadena de explosiones sobre el jefe derrotado (8 por segundo)
         if self.explosiones_jefe > 0 and self.estado.jefe is not None:
             antes = self.explosiones_jefe
             self.explosiones_jefe -= dt
-            if int(antes * 12) != int(self.explosiones_jefe * 12):
+            if int(antes * 8) != int(self.explosiones_jefe * 8):
                 j = self.estado.jefe
-                self._explosion(j.x + self.rng.uniform(0, j.ancho), j.y + self.rng.uniform(0, j.alto), 10,
-                                [C["naranja"], C["amarillo"], C["blanco"], C["rojo"]], velocidad=110)
+                self.efectos.explosion(j.x + self.rng.uniform(0, j.ancho), j.y + self.rng.uniform(0, j.alto),
+                                       self.rng.uniform(0.9, 1.6))
+                audio.efecto("explosion")
         # Las barras de opinión se animan hacia el valor real
         for clave, valor in self.estado.opinion.items():
             actual = self.opinion_mostrada[clave]
@@ -274,14 +354,15 @@ class LevelScene(Scene):
         contraste = self.juego.opciones.get("alto_contraste", False)
         self.fondo.dibujar_fondo(sup, cam, self.tiempo)
         if contraste:                                     # fondo oscurecido: las figuras resaltan
-            velo = pygame.Surface(sup.get_size())
-            velo.set_alpha(170)
-            sup.blit(velo, (0, 0))
+            self._velo_negro.set_alpha(170)
+            sup.blit(self._velo_negro, (0, 0))
         self.fondo.dibujar_terreno(sup, e.geometria, cam, alto_contraste=contraste)
         if not contraste:                                 # adornos y partículas: solo decorado
             self.fondo.dibujar_adornos(sup, cam, self.tiempo)
         contorno_enemigo = C["amarillo"] if contraste else None
         contorno_jugador = C["blanco"] if contraste else None
+        self._dibujar_sombras(sup, cam)
+        self.efectos.dibujar_detras(sup, cam)
 
         for p in e.powerups:
             if p.vivo:
@@ -291,18 +372,21 @@ class LevelScene(Scene):
                 self.sprites.dibujar(sup, f"powerup_{p.tipo}", "quieto", self.tiempo, p.x + 6, p.y + 12 + flota, cam)
         for s in e.sicarios:
             anim = "apuntar" if s.estado == "apuntar" else ("correr" if abs(s.vx) > 1 else "quieto")
-            self.sprites.dibujar(sup, "sicario", anim, s.t_anim, s.centro[0], s.pie - self._rebote(s.vx, s.t_anim),
-                                 cam, voltear=s.direccion < 0, contorno=contorno_enemigo)
+            self.sprites.dibujar(sup, "sicario", anim, s.t_anim, s.centro[0], s.pie, cam,
+                                 voltear=s.direccion < 0, contorno=contorno_enemigo)
             if s.estado == "apuntar" and s.t_estado > settings.SICARIO["apuntar"] - 0.15:   # aviso antes de disparar
                 bx, by = settings.SICARIO["arma"]
                 pygame.draw.circle(sup, C["amarillo"], (int(s.centro[0] + s.direccion * bx - cam), int(s.y + by)), 2)
         for v in e.vehiculos:
             if v.estado == "aviso":
                 continue
-            destello = (255, 255, 255) if v.t_golpe > 0 else None
+            tinte = (130, 130, 130) if v.t_golpe > 0 else None
             pie = v.centro[1] if v.clase == "dron" else v.pie        # el ancla del dron es su centro
-            self.sprites.dibujar(sup, v.clase, "quieto", v.t_anim, v.centro[0], pie, cam,
-                                 voltear=v.direccion < 0, destello=destello, contorno=contorno_enemigo)
+            # Suspensión: la carrocería salta 1 px sobre el terreno al andar
+            salto = 1 if v.clase != "dron" and int(v.t_anim * 9) % 3 == 0 else 0
+            self.sprites.dibujar(sup, v.clase, "quieto", v.t_anim, v.centro[0], pie - salto, cam,
+                                 voltear=v.direccion < 0, tinte=tinte, contorno=contorno_enemigo)
+            self._dibujar_mecanica(sup, v, pie, cam)
             if v.clase == "camioneta" and v.vida < v.vida_max:      # blindaje que le queda
                 bx, by = int(v.x - cam), int(v.y - 16)
                 pygame.draw.rect(sup, C["negro"], (bx, by, v.ancho, 3))
@@ -317,7 +401,9 @@ class LevelScene(Scene):
                 dibujar_texto(sup, f"{j.id_jugador}P", (int(j.centro[0] - cam), int(j.y) - 12),
                               contorno_jugador, centrado=True)
             pose = j.pose()
-            # El rebote solo hace falta si la pose tiene un único cuadro (p. ej. correr apuntando en diagonal)
+            if j.en_suelo and abs(j.vx) > 1:              # apuntando arriba o en diagonal, también corre
+                pose = anim_correr_jugador(pose) or pose
+            # El rebote solo hace falta si la pose tiene un único cuadro
             un_cuadro = len(self.sprites.animaciones("jugador").get(pose, [None])) == 1
             rebote = self._rebote(j.vx, j.t_anim) if j.en_suelo and un_cuadro else 0
             self.sprites.dibujar(sup, "jugador", pose, j.t_anim, j.centro[0], j.pie - rebote, cam,
@@ -325,13 +411,22 @@ class LevelScene(Scene):
         for b in e.balas:
             nombre = "bala_jugador" if b.del_jugador else SPRITE_BALA[b.tipo]
             pie = b.y if b.tipo == "onda" else b.y + b.radio + 1
+            bx, by = int(b.x - cam), int(b.y)
+            if b.del_jugador:                              # estela corta detrás de la bala
+                rapidez = math.hypot(b.vx, b.vy) or 1.0
+                ux, uy = b.vx / rapidez, b.vy / rapidez
+                pygame.draw.line(sup, (255, 200, 90), (bx - int(ux * 7), by - int(uy * 7)), (bx - int(ux * 2), by - int(uy * 2)))
+            elif not contraste and b.tipo != "onda":       # brillo alrededor de las balas enemigas
+                r = b.radio + 4
+                sup.blit(self.efectos.halo(r, COLOR_BALA_ENEMIGA[b.tipo], 80), (bx - r, by - r),
+                         special_flags=pygame.BLEND_RGB_ADD)
             if contraste and not b.del_jugador:            # aro amarillo: las balas enemigas se ven siempre
-                pygame.draw.circle(sup, C["amarillo"], (int(b.x - cam), int(b.y - (b.alto // 2))), b.radio + 3, 1)
+                pygame.draw.circle(sup, C["amarillo"], (bx, int(b.y - (b.alto // 2))), b.radio + 3, 1)
             self.sprites.dibujar(sup, nombre, "quieto", self.tiempo, b.x, pie, cam)
-        for p in self.particulas:
-            sup.fill(p.color, (int(p.x - cam), int(p.y), p.tam, p.tam))
+        self.efectos.dibujar(sup, cam)
         for x, y, t, color in self.fogonazos:   # estrella de 4 puntas en la boca del arma
             cx, cy, r = int(x - cam), int(y), 2 + int(t * 40)
+            sup.blit(self.efectos.halo(4, color, 60), (cx - 4, cy - 4), special_flags=pygame.BLEND_RGB_ADD)
             pygame.draw.line(sup, color, (cx - r, cy), (cx + r, cy))
             pygame.draw.line(sup, color, (cx, cy - r + 1), (cx, cy + r - 1))
             pygame.draw.circle(sup, (255, 255, 255), (cx, cy), 1)
@@ -339,16 +434,14 @@ class LevelScene(Scene):
         if dy:
             sup.scroll(0, dy)
         if self.destello > 0:
-            velo = pygame.Surface(sup.get_size(), pygame.SRCALPHA)
-            velo.fill((255, 60, 40, 90))
-            sup.blit(velo, (0, 0))
+            sup.fill((90, 20, 10), special_flags=pygame.BLEND_RGB_ADD)
 
         for lado, t in self.avisos_borde:                # flecha que parpadea en el borde por donde entra
             if int(t * 10) % 2:
                 x = settings.ANCHO - 8 if lado > 0 else 8
                 pygame.draw.polygon(sup, C["rojo"], [(x - 5 * lado, 104), (x - 5 * lado, 120), (x + 4 * lado, 112)])
                 dibujar_texto(sup, "!", (x - 14 * lado - 2, 108), C["amarillo"])
-        dibujar_hud(sup, e, self.opinion_mostrada, self.sprites, self.id_local)
+        dibujar_hud(sup, e, self.opinion_mostrada, self.sprites, self.id_local, tiempo=self.tiempo)
         self._dibujar_mensajes(sup)
         if e.game_over:
             self._dibujar_game_over(sup)
@@ -362,6 +455,41 @@ class LevelScene(Scene):
         pygame.draw.line(sup, C["gris"], (x - 8, y - 9), (x - 3, y))
         pygame.draw.line(sup, C["gris"], (x + 7, y - 9), (x + 2, y))
 
+    def _dibujar_sombras(self, sup, cam) -> None:
+        """Sombras bajo los pies: asientan a los personajes en el suelo."""
+        g = self.estado.geometria
+        for s in self.estado.sicarios:
+            fx.dibujar_sombra(sup, g, s.centro[0], s.pie, 18, cam)
+        for v in self.estado.vehiculos:
+            if v.estado != "aviso":
+                fx.dibujar_sombra(sup, g, v.centro[0], v.pie, v.ancho + 6, cam)
+        j = self.estado.jefe
+        if j is not None and (j.vivo or self.explosiones_jefe > 0):
+            fx.dibujar_sombra(sup, g, j.centro[0], j.pie, j.ancho + 14, cam)
+        for jugador in self.estado.jugadores:
+            if jugador.activo:
+                fx.dibujar_sombra(sup, g, jugador.centro[0], jugador.pie, 20 if not jugador.agachado else 34, cam)
+
+    def _dibujar_mecanica(self, sup, v, pie: float, cam: float) -> None:
+        """Hélices del dron y ruedas que giran (dibujadas sobre el sprite de una sola pose)."""
+        lado = v.direccion if v.direccion else 1
+        cx = v.centro[0] - cam
+        if v.clase == "dron":
+            fase = int(v.t_anim * 30) % 3
+            for hx, hy in HELICES_DRON:
+                x, y = int(cx + hx * lado), int(pie + hy)
+                ancho = (11, 7, 9)[fase]
+                pygame.draw.line(sup, (200, 210, 225), (x - ancho // 2, y), (x + ancho // 2, y))
+                if fase == 1:
+                    pygame.draw.line(sup, (120, 130, 150), (x - 5, y + 1), (x + 5, y + 1))
+        for rx, ry, radio in RUEDAS.get(v.clase, ()):
+            x, y = cx + rx * lado, pie + ry
+            ang = -v.t_anim * 14 * lado
+            for k in range(2):                              # dos rayos claros opuestos
+                a = ang + k * math.pi
+                sup.set_at((int(x + math.cos(a) * (radio - 1)), int(y + math.sin(a) * (radio - 1))), (150, 150, 160))
+                sup.set_at((int(x + math.cos(a) * (radio - 2)), int(y + math.sin(a) * (radio - 2))), (110, 110, 120))
+
     @staticmethod
     def _rebote(vx: float, t: float) -> int:
         """Sube 1 px cada otro paso al correr: da vida a los sprites de un solo cuadro."""
@@ -372,13 +500,22 @@ class LevelScene(Scene):
         if j is None or (not j.vivo and self.explosiones_jefe <= 0):
             return
         anim = ANIM_JEFE.get(j.estado, "quieto")
+        if anim == "quieto" and abs(j.vx) > 1:              # entrando a la arena o acomodándose
+            anim = "correr"
+        un_cuadro = len(self.sprites.animaciones(f"jefe{j.tipo}").get(anim, [None])) == 1
         dx = int(math.sin(self.tiempo * 60) * 1.5) if j.estado == "preparar" else 0   # tiembla antes de embestir
-        destello = (255, 90, 50) if j.t_golpe > 0 or (not j.vivo and int(self.tiempo * 15) % 2) else None
+        if anim == "disparar" and int(self.tiempo * 16) % 2:                         # culatazo: 1 px atrás
+            dx -= j.mirando
+        # Golpe: se aclara (tinte); derrotado: parpadea como silueta
+        destello = (255, 90, 50) if not j.vivo and int(self.tiempo * 15) % 2 else None
+        tinte = (64, 40, 30) if j.t_golpe > 0.05 and j.vivo else None     # destello suave de 2 cuadros por impacto
         # Agazapado (jefe 2 al embestir): el dibujo baja y se ensancha como su caja
         alto_normal = settings.JEFES[j.tipo]["alto"]
         escala = (1.0, 1.0) if j.alto == alto_normal else (1.15, j.alto / alto_normal)
-        self.sprites.dibujar(sup, f"jefe{j.tipo}", anim, self.tiempo, j.centro[0], j.pie - self._rebote(j.vx, self.tiempo), cam,
-                             voltear=j.mirando < 0, destello=destello, dx=dx, contorno=contorno, escala=escala)
+        rebote = self._rebote(j.vx, self.tiempo) if un_cuadro else 0
+        self.sprites.dibujar(sup, f"jefe{j.tipo}", anim, self.tiempo, j.centro[0], j.pie - rebote, cam,
+                             voltear=j.mirando < 0, destello=destello, dx=dx, contorno=contorno, escala=escala,
+                             tinte=tinte)
         if j.estado == "aturdido":   # estrellitas sobre la cabeza
             for i in range(3):
                 ang = self.tiempo * 6 + i * math.tau / 3

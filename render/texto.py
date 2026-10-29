@@ -10,6 +10,10 @@ import settings
 from render.fuente_pixel import FuentePixel
 
 _fuentes: Dict[int, object] = {}
+# Textos ya dibujados: (texto, color, escala, sombra) -> (imagen, sombra). Casi todo lo que se
+# escribe se repite cuadro a cuadro (HUD, menús), así que se dibuja una sola vez.
+_cache: Dict[tuple, tuple] = {}
+MAX_CACHE = 600
 RUTA_FUENTE = os.path.join(settings.RUTA_ASSETS, "fuentes", "pixel.ttf")
 
 
@@ -31,8 +35,15 @@ def dibujar_texto(superficie: pygame.Surface, texto: str, pos: Tuple[int, int],
                   centrado: bool = False, sombra: bool = True, derecha: bool = False) -> pygame.Rect:
     """Dibuja una línea de texto. pos es la esquina superior izquierda; con centrado=True es el
     centro superior y con derecha=True la esquina superior derecha."""
-    f = fuente(escala)
-    imagen = f.render(texto, False, color)
+    clave = (texto, tuple(color), escala, sombra)
+    par = _cache.get(clave)
+    if par is None:
+        f = fuente(escala)
+        par = (f.render(texto, False, color), f.render(texto, False, settings.COLORES["negro"]) if sombra else None)
+        if len(_cache) >= MAX_CACHE:
+            _cache.clear()
+        _cache[clave] = par
+    imagen, imagen_sombra = par
     rect = imagen.get_rect()
     if centrado:
         rect.midtop = pos
@@ -40,8 +51,8 @@ def dibujar_texto(superficie: pygame.Surface, texto: str, pos: Tuple[int, int],
         rect.topright = pos
     else:
         rect.topleft = pos
-    if sombra:
-        superficie.blit(f.render(texto, False, settings.COLORES["negro"]), rect.move(1, 1))
+    if imagen_sombra is not None:
+        superficie.blit(imagen_sombra, rect.move(1, 1))
     superficie.blit(imagen, rect)
     return rect
 
