@@ -12,6 +12,7 @@ from typing import Dict, FrozenSet, Optional, Set
 
 import pygame
 
+import almacen
 import settings
 
 # --- Acciones abstractas ----------------------------------------------------
@@ -88,15 +89,12 @@ class EstadoAcciones:
 def cargar_config(ruta: str = settings.RUTA_GAMEPAD) -> dict:
     """Lee config/gamepad.json completando con valores por defecto."""
     config = json.loads(json.dumps(CONFIG_POR_DEFECTO))  # copia profunda
-    try:
-        with open(ruta, encoding="utf-8") as f:
-            datos = json.load(f)
+    datos = almacen.leer(ruta)
+    if isinstance(datos, dict) and isinstance(datos.get("botones", {}), dict):
         config["botones"].update(datos.get("botones", {}))
         for clave in ("eje_x", "eje_y", "umbral_eje", "invertir_eje_y"):
             if clave in datos:
                 config[clave] = datos[clave]
-    except (OSError, ValueError):
-        pass
     return config
 
 
@@ -105,8 +103,7 @@ def guardar_config(config: dict, ruta: str = settings.RUTA_GAMEPAD) -> None:
     datos = {"_ayuda": "IDs de botones del control NES USB. Usa tools/probar_control.py "
                        "para descubrirlos o remapea desde Opciones > Configurar control."}
     datos.update(config)
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(datos, f, indent=2, ensure_ascii=False)
+    almacen.guardar(ruta, datos)
 
 
 class InputManager:

@@ -15,7 +15,7 @@ La música está escrita nota por nota en audio/musica_datos.py (temas) y audio/
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 

@@ -28,12 +28,13 @@ python main.py --headless 600      # prueba sin ventana (600 frames)
 python -m unittest discover -s tests -t . -v
 python main.py --arena             # desarrollo: cada nivel empieza frente al jefe
 python main.py --nivel 2 --arena   # desarrollo: directo al nivel 2
+python tools/empaquetar_web.py     # arma la versión web y la abre en un servidor de prueba local
 python -m net.servidor             # servidor dedicado del multijugador (opcional)
 ```
 
 Flujo de una partida: menú → **informe del nivel** (historia, mapa y elección de ruta) → nivel →
-**decisión con tiempo límite** (y opción de revocar) → teléfono → informe del nivel siguiente →
-... → pantalla final.
+**decisión con tiempo límite** (y opción de revocar) → teléfono → **reportaje** (el país comenta
+esa decisión) → informe del nivel siguiente → ... → pantalla final.
 
 `F11` alterna pantalla completa. La ventana se puede redimensionar: la imagen de 256x224 se
 escala por un factor entero para que el pixel art se vea nítido.
@@ -68,6 +69,10 @@ El teclado siempre funciona como respaldo, aunque haya un control conectado.
 
 ```
 main.py            Juego: ventana, bucle con paso fijo (DT = 1/60) y escalado
+ritmo.py           Marcapasos de los cuadros: 60 por segundo exactos y un paso de simulación por imagen
+almacen.py         Guardado de opciones, logros y controles: un archivo (escritorio) o el navegador (web)
+tools/empaquetar_web.py  Arma la versión web con solo el código y los recursos finales
+tools/web/plantilla.tmpl Página de la versión web: pantalla de carga y tamaño del juego en la página
 settings.py        Constantes y opciones del jugador (config/opciones.json)
 input_manager.py   Teclado + gamepad -> acciones abstractas {id_jugador: EstadoAcciones}
 scenes/            Máquina de escenas (Scene + SceneManager con pila) y cada pantalla
@@ -524,10 +529,14 @@ poco (antes 3–5 drones, 2–4 motos, 1–2 camionetas de blindaje 8).
 | Refuerzo (`core/vehiculos.py`) | Comportamiento | Cómo se supera |
 |---|---|---|
 | **Dron** (2 de vida) | Se pone sobre el jugador y suelta balas hacia abajo; a los 11 s se va | Disparar hacia arriba o en diagonal |
-| **Moto** (2 de vida) | Cruza la pantalla a 128 px/s disparando al frente; salta huecos y escalones | Saltarla; agachado, sus balas pasan por encima |
+| **Moto** (2 de vida) | Cruza la pantalla a 96 px/s disparando al frente; salta huecos y escalones | Saltarla; agachado, sus balas pasan por encima |
 | **Camioneta blindada** | Se planta a distancia y el tirador del techo dispara ráfagas apuntadas | Destruirla (suelta un arma) |
 
-Todos avisan antes de entrar: sonido, mensaje y una flecha en el borde por donde vienen.
+Todos avisan antes de entrar: sonido, mensaje y una flecha en el borde por donde vienen. Mientras
+dura el aviso esperan **fuera de la pantalla, pegados al borde** por el que entran: como la cámara
+sigue avanzando, se corren con ella sobre suelo firme hacia afuera
+(`EstadoJuego.mantener_fuera_de_cuadro`). Así siempre entran desde el borde, como los sicarios, y
+nunca aparecen de golpe en medio de la pantalla.
 
 **Armas** (reemplazan a las letras): **disparo triple** y **disparo rápido** (una bala cada
 0,07 s en vez de 0,16). Caen en paracaídas sobre suelo firme o las suelta una camioneta, y se
@@ -569,7 +578,10 @@ jefe anterior, las dos rutas y 12 mapas distintos.
 ## Tiempo límite
 
 - **Decisión sobre el jefe:** 15 segundos (`settings.TIEMPO_DECISION`). Si se acaban, el jefe
-  **escapa**, que cuenta como dejarlo libre. Los últimos 5 segundos suenan.
+  **escapa**, que cuenta como dejarlo libre para la opinión, el árbol y los finales. Los últimos 5
+  segundos suenan. La partida anota el escape (`Partida.escapes`), y el teléfono, el reportaje y
+  la pantalla final lo cuentan como escape ("SE ESCAPÓ", noticias y comentarios propios, sello
+  "¡ESCAPÓ!"), no como liberación; tampoco da el logro de dejar libre a un jefe.
 - **Revocar:** tras sellar la decisión hay 2,5 segundos para arrepentirse (una vez por partida).
 - Abrir la ayuda detiene el reloj.
 
@@ -650,6 +662,52 @@ derecha la opinión popular se anima del valor anterior al nuevo, con la diferen
 - `tests/test_noticias.py` comprueba las variantes, los marcadores, que la fuente pixel pueda
   dibujar cada carácter, el largo de los textos y que los nombres quepan en las tarjetas.
 
+## Reportajes al final de cada nivel (`scenes/reportaje.py`, `core/reportajes.py`, `render/reportajes.py`)
+
+Al terminar cada nivel, después del teléfono, el país comenta **la decisión sobre el jefe de ese
+nivel** en **uno** de tres formatos, uno por categoría de opinión. Cada partida reparte los tres
+formatos entre los tres niveles en un orden al azar (`core/reportajes.formatos`, a partir de la
+semilla de la partida): en una partida el nivel 1 lo comenta el influencer, en otra el
+noticiero, etc. Después sigue el informe del nivel siguiente (o, en el nivel 3, la pantalla final):
+
+| Segmento | Categoría | Quiénes hablan | Escenario |
+|---|---|---|---|
+| NOTICIERO | medios | la presentadora Lucía Prado pregunta y el analista Dr. Ortiz comenta | estudio de VENTANA 7 TV: pantalla gigante con el jefe y el sello de la decisión, cintillo de ÚLTIMA HORA con los titulares del teléfono |
+| EN VIVO | influencers | un seguidor pregunta por el chat y @NICOVIRAL responde | su cuarto: aro de luz, silla gamer y neón; encima, la interfaz del directo (espectadores, chat, corazones) |
+| LA CALLE | pueblo | la reportera Tatiana Ríos entrevista a un vecino en cada lugar | el paisaje de cada nivel (selva, Medellín, La Guajira) con el visor de la cámara; cierra la abuela Carmen |
+
+- Cada reportaje = introducción + (pregunta, comentario) sobre la decisión del nivel; en el nivel
+  3 va además un **cierre según la opinión final** de su categoría (alta ≥ 60, media,
+  baja ≤ 40). Si el camino del árbol lo amerita, el
+  comentario se cambia por uno especial (`reincidente`, `rectifica`, `racha`, igual que en el
+  teléfono). Los diálogos salen **del árbol**: no se diseñó una escena por enemigo y decisión,
+  sino 3 escenarios fijos y textos con marcadores (`{jefe}`, `{lugar}`).
+- Los textos están en diccionarios al inicio de `core/reportajes.py` (`COMENTARIOS`,
+  `ESPECIALES`, `PREGUNTAS`, `INTROS`, `CIERRES`). El guion es determinista.
+- Los personajes son bustos dibujados por código (`render/personajes.py`) con la paleta de los
+  sprites y contorno negro de 1 px por capas; mueven la boca mientras sale el texto y parpadean.
+  **Sprites propios:** los 7 personajes son arte del equipo, procesado por
+  `tools/procesar_reportajes.py` desde `assets/sprites_raw/reportajes/` a `assets/reportajes/`
+  (flood fill del fondo magenta, halo, moda por bloque, paleta de 24 colores, contorno). Bustos de
+  88 x 116 (el doble de detalle que el dibujo por código, que se usa si falta un PNG y se duplica
+  exacto), todos con la misma escala y la boca en (44, 42). Los estados que hablan y parpadean se
+  generan desde el busto: misma silueta, no saltan. Los ojos y la boca de cada original están
+  marcados a mano al inicio del script (`BOCAS`, `OJOS`). Hoja de revisión:
+  `assets/reportajes_preview.png`. Medidas para nuevos dibujos: `assets/reportajes/LEEME.txt`.
+- **Encuadre:** plano medio. Los bustos nunca se estiran: el escritorio (noticiero, directo) o el
+  cuadro de diálogo (calle, donde cada busto se apoya por su borde de abajo) tapan su corte; una
+  prueba lo verifica para cada personaje y escena. Los fondos (por código) tienen pocos elementos y
+  dejan el protagonismo a los personajes, que se integran con la luz de cada escena (`Luz` en
+  `render/reportajes.py`): filo de luz de 1 px del lado de la luz, tono ambiente y, en los
+  estudios, su sombra en la pared. En la calle el paisaje del nivel va velado para dar profundidad.
+- Controles: ENTER/A completa el texto o pasa al siguiente cuadro. No se puede saltar: el
+  reportaje es la consecuencia de la decisión y se lee entero.
+- `tests/test_reportajes.py` recorre los 27 caminos en los 3 niveles: que cada reportaje comente
+  solo la decisión de su nivel, que cada partida reparta los 3 formatos, que el nombre de la
+  pestaña no toque ningún borde, que los PNG propios reemplacen al dibujo,
+  que cada texto quepa en un cuadro y la fuente lo tenga, las contracciones ("al JAGUAR", "del
+  JAGUAR") y que después siga el informe del nivel siguiente o la pantalla final.
+
 ## Pantalla final (`scenes/ending.py` + `render/arbol_visual.py`)
 
 Cuatro páginas, que se recorren con izquierda/derecha:
@@ -677,8 +735,16 @@ por nivel, el puntaje, el árbol de la partida (`to_dict()`), la semilla, el map
 
 ## Sonido (`audio/`)
 
-Casi todo el sonido se **sintetiza con numpy** al iniciar el juego (≈1,3 s), en estilo NES:
-ondas de pulso, triángulo y ruido (`audio/sintesis.py`), a 44,1 kHz y en estéreo.
+Todo el sonido está **definido en código** y se sintetiza con numpy en estilo NES: ondas de
+pulso, triángulo y ruido (`audio/sintesis.py`), a 44,1 kHz y en estéreo.
+- **Música grabada:** sintetizar la música al iniciar llevaba el proceso a ~815 MB (los cálculos
+  intermedios de numpy no se devuelven al sistema), algo grave para la versión web. Por eso
+  `tools/grabar_musica.py` la graba una vez en `assets/sonidos/musica_<tema>.ogg` (Vorbis,
+  calidad 0.2: 7 MB en total, ~36 dB de fidelidad, sin clic en el bucle) y `audio/gestor.py` usa
+  esos archivos: el juego queda en ~170 MB y arranca en 0,65 s. Los efectos (cortos) se siguen
+  sintetizando. La herramienta necesita `pip install soundfile`; el juego no. Si se cambia la
+  música en el código, `tests/test_musica_grabada.py` falla hasta que se vuelva a grabar (compara
+  una huella de las fuentes guardada en `assets/sonidos/musica.json`).
 - **Ondas limpias:** los pulsos son de banda limitada (PolyBLEP), sin el chirrido del aliasing;
   el triángulo es escalonado como el de la NES. Al final, un filtro de salida circular (pasa
   bajos suave y corte de graves extremos) y un limitador suave: nunca satura y los bucles
@@ -781,6 +847,29 @@ silencio.
 - [x] (l) Himno escrito a mano (melodía y bajo) y voz de bienvenida, que suena antes que la música
 - [x] (m) Dificultad de los niveles 2 y 3 ajustada en `levels/`, con simulador de partidas
 - [x] (n) Pulido gráfico y sonoro: animación por código, efectos, terreno y atmósfera por nivel, transiciones, CRT, créditos, música compuesta y síntesis de banda limitada
+- [x] (o) Reportaje al final de cada nivel: noticiero, directo de un influencer o entrevista en la calle (uno al azar por nivel) comentan la decisión sobre el jefe
+
+- [x] (p) Movimiento más parejo: 60 cuadros por segundo exactos y un paso de simulación por imagen
+- [x] (q) Versión web: el mismo juego en el navegador, con sus opciones y logros guardados ahí
+
+## Versión web
+
+El juego también corre en el navegador de un computador, sin instalar nada. Es el mismo código
+y los mismos recursos que en el escritorio; solo cambian tres cosas, que el juego decide solo al
+detectar dónde corre:
+
+- **El bucle principal** cede el turno al navegador en cada imagen (en el escritorio lo marca
+  el propio juego).
+- **El guardado** de opciones, logros y controles va al almacenamiento del navegador en lugar de
+  a archivos, así que se conserva entre visitas en ese mismo navegador.
+- **La ventana** se dibuja a su resolución interna (256x224) y la página la agranda un número
+  entero de veces, para que los píxeles queden parejos.
+
+No hay servidor del juego: la página solo entrega archivos, y toda la partida ocurre en el
+equipo de quien juega. En la versión web no están el menú SALIR (se cierra la pestaña), la
+captura de evidencia del final ni el multijugador en red. `tools/empaquetar_web.py` arma el
+paquete con lo necesario para jugar; las pruebas, las herramientas y los originales del arte
+quedan fuera.
 
 ## Lineamientos del laboratorio (`docs/lineamientos.pdf`)
 

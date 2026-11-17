@@ -1,0 +1,16 @@
+{
+  "_ayuda": "Huella de las fuentes de la música grabada (tools/grabar_musica.py). Si no coincide, vuelve a correr ese script.",
+  "huella": "f0797cf13a4c7cab7cbf9dbf54bc805cf74e3ec61b6a8d976e00977a775ee9ce",
+  "temas": [
+    "nivel1",
+    "nivel2",
+    "nivel3",
+    "jefe",
+    "decision",
+    "noticias",
+    "final",
+    "menu",
+    "victoria",
+    "game_over"
+  ]
+}

@@ -191,10 +191,12 @@ class TestVehiculos(BaseNivel):
         self.pasos(int((settings.VEHICULOS["moto"]["aviso"] + 0.1) / DT))
         x0 = v.x
         balas = []
-        for _ in range(int(1.0 / DT)):
+        # 1,6 s: durante el aviso la moto espera en el borde (fuera de cuadro) y desde ahí cruza
+        for paso in range(int(1.6 / DT)):
             self.pasos(1, acc(im.ABAJO))
             balas += [b for b in self.balas_enemigas() if b not in balas]
-        self.assertLess(v.x, x0 - 80)                                     # más de 80 px/s
+            if paso == int(1.0 / DT):
+                self.assertLess(v.x, x0 - 80)                             # más de 80 px/s
         self.assertGreater(settings.VEHICULOS["moto"]["velocidad"], settings.JUGADOR["velocidad"])
         self.assertTrue(balas)
         self.assertTrue(all(b.vy == 0 for b in balas))                    # dispara al frente
@@ -232,6 +234,68 @@ class TestVehiculos(BaseNivel):
                 break
             self.assertLess(v.y, settings.ALTO)                           # nunca cae al vacío
         self.assertLess(v.x, 200)                                         # cruzó el hueco de 50 px
+
+    def test_moto_aparece_fuera_de_la_pantalla_aunque_el_borde_caiga_en_un_hueco(self):
+        """Antes el suelo se buscaba hacia atrás y la moto aparecía en medio de la pantalla."""
+        caja = settings.VEHICULOS["moto"]["caja"]
+        # Por la derecha: el borde (cámara + 256 + 24 = 280) cae en el hueco 240..330
+        self.nuevo(largo=1024, suelo=[[0, 240, 192], [330, 1024, 192]])
+        self.estado.camara_x = 0
+        self.estado._aparecer_rodando({"tipo": "moto", "lado": "derecha"})
+        v = self.estado.vehiculos[-1]
+        self.assertGreaterEqual(v.x, self.estado.camara_x + settings.ANCHO)       # fuera, a la derecha
+        # Por la izquierda: el borde cae en el hueco 300..360; la moto queda fuera, a la izquierda
+        self.nuevo(largo=1024, suelo=[[0, 300, 192], [360, 1024, 192]])
+        self.estado.camara_x = 400
+        self.estado._aparecer_rodando({"tipo": "moto", "lado": "izquierda"})
+        v = self.estado.vehiculos[-1]
+        self.assertLessEqual(v.x + caja[0], self.estado.camara_x)                 # fuera, a la izquierda
+
+    def arranque_con_jugador_caminando(self, clase: str):
+        """El jugador camina a la derecha (la cámara avanza) mientras suena el aviso de un vehículo
+        que entra por la derecha. Devuelve (vehículo, cámara al aparecer, cámara al arrancar)."""
+        self.nuevo(largo=3000, suelo=[[0, 3000, 192]])
+        self.jugador.x = 150
+        self.pasos(30, acc(im.DERECHA))                      # la cámara ya sigue al jugador
+        self.estado._aparecer_rodando({"tipo": clase, "lado": "derecha"})
+        v = self.estado.vehiculos[-1]
+        camara_inicio = self.estado.camara_x
+        while v.estado == "aviso":
+            self.jugador.invulnerable = 1.0
+            self.estado.update(DT, acc(im.DERECHA))
+        return v, camara_inicio, self.estado.camara_x
+
+    def test_la_moto_entra_desde_el_borde_aunque_la_camara_avance_durante_el_aviso(self):
+        """Antes esperaba quieta y, como la cámara avanzaba, al terminar el aviso aparecía en medio
+        de la pantalla. Ahora espera pegada al borde y entra desde afuera, como los sicarios."""
+        for clase in ("moto", "camioneta"):
+            v, camara_inicio, camara_arranque = self.arranque_con_jugador_caminando(clase)
+            self.assertGreater(camara_arranque - camara_inicio, settings.VEHICULOS[clase]["caja"][0] // 2,
+                               "la prueba necesita que la cámara avance durante el aviso")
+            # Al arrancar ya dio su primer paso (velocidad x DT): sigue fuera, junto al borde derecho
+            self.assertGreaterEqual(v.x, camara_arranque + settings.ANCHO, clase)
+            self.assertLessEqual(v.x, camara_arranque + settings.ANCHO + 2 * self.estado.MARGEN_REFUERZO, clase)
+            self.assertLess(v.y, settings.ALTO)                           # sobre el suelo, no en el vacío
+
+    def test_ningun_vehiculo_aparece_dentro_de_la_pantalla(self):
+        """En los 3 niveles reales, con varias semillas y peligro: la cámara recorre el nivel y cada
+        moto y camioneta del plan nace fuera de cuadro (sobre el terreno de verdad, con sus huecos)."""
+        vistos = 0
+        for numero in (1, 2, 3):
+            for semilla in range(8):
+                estado = EstadoJuego.nuevo(numero, [Jugador()], semilla=semilla, peligro=3)
+                for camara in range(0, estado.arena_x, 4):
+                    estado.camara_x = float(camara)
+                    antes = len(estado.vehiculos)
+                    estado._aparecer_aleatorios()
+                    for v in estado.vehiculos[antes:]:
+                        if v.clase == "dron":
+                            continue
+                        vistos += 1
+                        fuera = v.x >= camara + settings.ANCHO or v.x + v.ancho <= camara
+                        self.assertTrue(fuera, f"nivel {numero}, semilla {semilla}: {v.clase} en "
+                                               f"x={v.x:.0f} con la cámara en {camara}")
+        self.assertGreater(vistos, 30)                         # la prueba vio vehículos de verdad
 
     def test_camioneta_se_planta_y_el_tirador_apunta(self):
         v = self.con("camioneta", 280, vida=8)

@@ -108,7 +108,8 @@ class PhoneScene(Scene):
         self.decision = decision
         camino = self.partida.arbol.camino() or [decision]
         jefe = self.partida.jefes_derrotados[-1] if self.partida.jefes_derrotados else "EL CAPO"
-        self.feed = generar_feed(camino, jefe.title())
+        self.escapo = self.partida.escapo_en(len(camino))
+        self.feed = generar_feed(camino, jefe.title(), escapes=self.partida.escapes)
         self.contenido = self._componer_feed()
         self.antes = opinion_antes or self.partida.arbol.opinion()
         self.despues = self.partida.arbol.opinion()
@@ -174,12 +175,9 @@ class PhoneScene(Scene):
             self.continuar()
 
     def continuar(self):
-        p = self.partida
-        if p.nivel >= ULTIMO_NIVEL:
-            self.juego.escenas.cambiar("final")
-        else:
-            p.avanzar()
-            self.juego.escenas.cambiar("historia", numero=p.nivel, puntaje=p.puntaje, vidas=p.vidas)
+        # El reportaje del nivel (el país comenta la decisión); de ahí se sigue al informe del
+        # nivel siguiente o a la pantalla final (scenes/reportaje.py -> continuar)
+        self.juego.escenas.cambiar("reportaje")
 
     # --- Dibujo --------------------------------------------------------------------------
     # --- Pulgar ------------------------------------------------------------------------------
@@ -251,19 +249,17 @@ class PhoneScene(Scene):
             pygame.draw.rect(sup, C["blanco"], (x + 50, y + 10, 1, 5))
 
         dibujar_texto(sup, "TU DECISIÓN:", (x, 106), C["gris"])
-        dibujar_texto(sup, NOMBRES_DECISION[self.decision], (x, 116), C["blanco"])
+        dibujar_texto(sup, "SE ESCAPÓ" if self.escapo else NOMBRES_DECISION[self.decision], (x, 116), C["blanco"])
 
         progreso = 1.0 if self.manual else min(1.0, self.tiempo / DURACION)
-        if self.siguiente:
-            if self.manual:
-                dibujar_texto(sup, f"NIVEL {self.partida.nivel + 1} LISTO", (x, 146), C["verde"])
-            else:
-                dibujar_texto(sup, f"CARGANDO NIVEL {self.partida.nivel + 1}", (x, 146), C["cian"])
-            for i, linea in enumerate(envolver(self.siguiente, 1, 104)[:2]):
-                dibujar_texto(sup, linea, (x, 156 + i * 10), C["blanco"])
+        # Lo que viene: el reportaje del nivel (el país opina) y después el nivel o el veredicto
+        if self.manual:
+            dibujar_texto(sup, "TODO LISTO", (x, 146), C["verde"])
         else:
-            dibujar_texto(sup, "PREPARANDO EL", (x, 146), C["cian"])
-            dibujar_texto(sup, "VEREDICTO...", (x, 156), C["cian"])
+            dibujar_texto(sup, "A CONTINUACIÓN", (x, 146), C["cian"])
+        dibujar_texto(sup, "EL PAÍS OPINA", (x, 156), C["blanco"])
+        luego = f"NIVEL {self.partida.nivel + 1}" if self.siguiente else "VEREDICTO"   # cabe en el panel
+        dibujar_texto(sup, f"LUEGO: {luego}", (x, 166), C["gris"])
         pygame.draw.rect(sup, C["gris_oscuro"], (x, 180, 100, 6))
         pygame.draw.rect(sup, C["cian"], (x, 180, int(100 * (1 - (1 - progreso) ** 2)), 6))
         control = "CRUCETA" if self.juego.entrada.hay_control else "FLECHAS"

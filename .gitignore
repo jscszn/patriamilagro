@@ -14,3 +14,6 @@ assets/sonidos_raw/*.mp3
 
 # Notas internas de desarrollo: solo en local
 HISTORIAL.md
+
+# Versión web: se genera entera con tools/empaquetar_web.py
+web/

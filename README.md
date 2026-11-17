@@ -21,6 +21,11 @@ en el mapa y en el final que obtiene.
 
 ## Cómo jugar
 
+**En el navegador:** <https://jscszn.com/patriamilagro> (en un computador, con teclado; no hay
+que instalar nada).
+
+**En el computador:**
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
@@ -37,6 +42,16 @@ python main.py
 | Ayuda | F1 / Tab | SELECT |
 
 Pruebas: `python -m unittest discover -s tests -t .`
+
+## Qué trae
+
+- Tres niveles de acción (la selva del Vichada, Medellín y La Guajira), cada uno con su jefe.
+- Una decisión por jefe, con consecuencias: el teléfono con noticias, un reportaje (noticiero,
+  directo de un influencer o entrevista en la calle) y el mapa del país cambian según lo decidido.
+- Cinco finales distintos y una pantalla final que muestra el árbol de decisiones y el recorrido.
+- Música y efectos estilo NES, 11 logros, tutorial, ayuda y opciones de accesibilidad.
+- Versión de escritorio y versión web: las dos son el mismo juego. En la web, las opciones y los
+  logros se guardan en el propio navegador.
 
 ## Cómo cumple los lineamientos
 
@@ -59,7 +74,7 @@ que pide el laboratorio está, con estos cambios de forma:
 | Multijugador cliente-servidor con sockets | Servidor autoritativo sobre TCP en `net/`. Se juega con **un control NES por jugador**, así que se habilitará en el menú cuando el equipo tenga los controles. Hasta entonces el juego es para un jugador. |
 | Interfaz gráfica | Todo se ve en la ventana: niveles, mapa, teléfono con noticias, árbol y gráficas. |
 | Inclusividad | Alto contraste, filtros que corrigen los colores para daltonismo y aviso visual (mensaje y flecha) cuando llega un refuerzo, que también se anuncia con sonido. |
-| Ayuda | Sección AYUDA de 12 páginas, tutorial en el nivel 1 y mensajes durante la partida. |
+| Ayuda | Sección AYUDA de 13 páginas, tutorial en el nivel 1 y mensajes durante la partida. |
 | Motivación | Música y efectos estilo NES, 11 logros, mensajes de ánimo y efectos al ganar o perder. |
 
 ## Más información

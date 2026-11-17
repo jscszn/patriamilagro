@@ -1,0 +1,327 @@
+{
+  "fecha": "2026-11-12T15:38:31",
+  "camino": [
+    "capturar",
+    "liberar",
+    "extraditar"
+  ],
+  "final": "PRESIDENTE EQUILIBRISTA",
+  "opinion_final": {
+    "medios": 59,
+    "influencers": 56,
+    "pueblo": 43
+  },
+  "historial_opinion": [
+    {
+      "medios": 50,
+      "influencers": 50,
+      "pueblo": 50
+    },
+    {
+      "medios": 56,
+      "influencers": 58,
+      "pueblo": 59
+    },
+    {
+      "medios": 41,
+      "influencers": 50,
+      "pueblo": 41
+    },
+    {
+      "medios": 59,
+      "influencers": 56,
+      "pueblo": 43
+    }
+  ],
+  "puntaje": 38850,
+  "jefes": [
+    "EL JAGUAR DEL MONTE",
+    "DON CONCRETO",
+    "LA SOMBRA DE LA RAYA"
+  ],
+  "arbol": {
+    "raiz": {
+      "nivel": 0,
+      "decision": null,
+      "opinion": {
+        "medios": 50,
+        "influencers": 50,
+        "pueblo": 50
+      },
+      "ajuste": {
+        "medios": 0,
+        "influencers": 0,
+        "pueblo": 0
+      },
+      "hijos": {
+        "capturar": {
+          "nivel": 1,
+          "decision": "capturar",
+          "opinion": {
+            "medios": 56,
+            "influencers": 58,
+            "pueblo": 59
+          },
+          "ajuste": {
+            "medios": 0,
+            "influencers": 0,
+            "pueblo": -3
+          },
+          "hijos": {
+            "liberar": {
+              "nivel": 2,
+              "decision": "liberar",
+              "opinion": {
+                "medios": 41,
+                "influencers": 50,
+                "pueblo": 41
+              },
+              "ajuste": {
+                "medios": 0,
+                "influencers": 0,
+                "pueblo": 0
+              },
+              "hijos": {
+                "extraditar": {
+                  "nivel": 3,
+                  "decision": "extraditar",
+                  "opinion": {
+                    "medios": 59,
+                    "influencers": 56,
+                    "pueblo": 43
+                  },
+                  "ajuste": {
+                    "medios": 0,
+                    "influencers": 0,
+                    "pueblo": 0
+                  },
+                  "hijos": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "camino": [
+      "capturar",
+      "liberar",
+      "extraditar"
+    ]
+  },
+  "semilla": 439486,
+  "mapa": {
+    "grafo": {
+      "dirigido": false,
+      "vertices": {
+        "capital": {
+          "nombre": "BOGOTÁ",
+          "corto": "BOGOTÁ",
+          "pos": [
+            -74.08,
+            4.6
+          ]
+        },
+        "llanos": {
+          "nombre": "EL META",
+          "corto": "META",
+          "pos": [
+            -73.0,
+            3.0
+          ]
+        },
+        "selva": {
+          "nombre": "EL VICHADA",
+          "corto": "VICHADA",
+          "pos": [
+            -69.5,
+            3.5
+          ]
+        },
+        "casanare": {
+          "nombre": "CASANARE",
+          "corto": "CASANARE",
+          "pos": [
+            -72.4,
+            5.35
+          ]
+        },
+        "puerto": {
+          "nombre": "BARRANCABERMEJA",
+          "corto": "BARRANCA",
+          "pos": [
+            -73.85,
+            7.07
+          ]
+        },
+        "ciudad": {
+          "nombre": "MEDELLÍN",
+          "corto": "MEDELLÍN",
+          "pos": [
+            -75.57,
+            6.25
+          ]
+        },
+        "caribe": {
+          "nombre": "CARTAGENA",
+          "corto": "CARTAGENA",
+          "pos": [
+            -75.51,
+            10.39
+          ]
+        },
+        "sierra": {
+          "nombre": "SANTA MARTA",
+          "corto": "SANTA MARTA",
+          "pos": [
+            -74.2,
+            11.24
+          ]
+        },
+        "frontera": {
+          "nombre": "LA GUAJIRA",
+          "corto": "GUAJIRA",
+          "pos": [
+            -72.24,
+            11.38
+          ]
+        }
+      },
+      "aristas": [
+        [
+          "capital",
+          "llanos",
+          1
+        ],
+        [
+          "capital",
+          "selva",
+          7
+        ],
+        [
+          "capital",
+          "casanare",
+          2
+        ],
+        [
+          "capital",
+          "puerto",
+          3
+        ],
+        [
+          "capital",
+          "ciudad",
+          7
+        ],
+        [
+          "llanos",
+          "selva",
+          1
+        ],
+        [
+          "selva",
+          "casanare",
+          2
+        ],
+        [
+          "casanare",
+          "puerto",
+          2
+        ],
+        [
+          "puerto",
+          "ciudad",
+          4
+        ],
+        [
+          "puerto",
+          "caribe",
+          3
+        ],
+        [
+          "puerto",
+          "sierra",
+          4
+        ],
+        [
+          "puerto",
+          "frontera",
+          7
+        ],
+        [
+          "ciudad",
+          "caribe",
+          6
+        ],
+        [
+          "caribe",
+          "sierra",
+          2
+        ],
+        [
+          "sierra",
+          "frontera",
+          1
+        ]
+      ]
+    },
+    "costo_base": {
+      "1": 3.0,
+      "2": 7.0,
+      "3": 7.0
+    },
+    "jefes_libres": [
+      "ciudad"
+    ],
+    "retenes": [
+      [
+        "capital",
+        "selva"
+      ]
+    ]
+  },
+  "rutas": {
+    "1": {
+      "camino": [
+        "capital",
+        "selva"
+      ],
+      "peligro": 8,
+      "tramos": 1,
+      "refuerzos": 2,
+      "opinion": {
+        "pueblo": 0
+      },
+      "clave": "corta"
+    },
+    "2": {
+      "camino": [
+        "selva",
+        "casanare",
+        "puerto",
+        "ciudad"
+      ],
+      "peligro": 6,
+      "tramos": 3,
+      "refuerzos": 0,
+      "opinion": {
+        "pueblo": -3
+      },
+      "clave": "segura"
+    },
+    "3": {
+      "camino": [
+        "ciudad",
+        "puerto",
+        "frontera"
+      ],
+      "peligro": 12,
+      "tramos": 2,
+      "refuerzos": 3,
+      "opinion": {
+        "pueblo": 0
+      },
+      "clave": "corta"
+    }
+  }
+}

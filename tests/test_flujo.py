@@ -56,6 +56,16 @@ class TestFlujoCompleto(unittest.TestCase):
         self.assertEqual(self.escena(), "PhoneScene")
         self.frames(int(3.1 * 60))                           # se puede saltar desde los 3 s
         self.pulsar(im.CONFIRMAR)
+        self.saltar_reportaje()
+
+    def saltar_reportaje(self):
+        """Reportaje del nivel (uno de los 3 formatos): no se puede saltar, se lee con ENTER."""
+        self.assertEqual(self.escena(), "ReportajeScene")
+        for _ in range(40):                                 # cada cuadro: completar y seguir
+            if self.escena() != "ReportajeScene":
+                break
+            self.pulsar(im.CONFIRMAR)
+        self.assertNotEqual(self.escena(), "ReportajeScene")
 
     def test_partida_completa(self):
         self.pulsar(im.CONFIRMAR)                           # menú: JUGAR
@@ -95,8 +105,9 @@ class TestFlujoCompleto(unittest.TestCase):
         self.assertEqual(self.escena(), "PhoneScene")
         self.pulsar(im.CONFIRMAR)                           # antes de 3 s: se ignora
         self.assertEqual(self.escena(), "PhoneScene")
-        self.frames(int(10 * 60))                           # a los 10 s sigue solo al informe del nivel 2
-        self.assertEqual(self.escena(), "HistoriaScene")
+        self.frames(int(10 * 60))                           # a los 10 s sigue solo al reportaje del nivel 1
+        self.saltar_reportaje()
+        self.assertEqual(self.escena(), "HistoriaScene")    # y de ahí al informe del nivel 2
         self.assertEqual(self.juego.partida.nivel, 2)
 
     def test_pulsar_al_entrar_no_decide(self):
@@ -149,7 +160,7 @@ class TestTelefonoManual(unittest.TestCase):
             self.paso()
         self.assertEqual(self.escena.desplazamiento, auto)  # sin toques automáticos
         self.paso(pulsadas=[im.CONFIRMAR])
-        self.assertEqual(type(self.juego.escenas.actual).__name__, "HistoriaScene")
+        self.assertEqual(type(self.juego.escenas.actual).__name__, "ReportajeScene")
 
 
 class TestPulgarTelefono(TestTelefonoManual):
@@ -175,3 +186,19 @@ class TestPulgarTelefono(TestTelefonoManual):
         self.assertGreater(by, 224)                          # la base sale por el borde inferior
         self.paso(im.ABAJO)
         self.assertEqual(self.escena.base_pulgar, (bx, by))  # la base no se mueve al presionar
+
+
+class TestPanelTelefono(unittest.TestCase):
+    """Todo lo que se escribe en el panel derecho del teléfono cabe en la pantalla."""
+
+    def test_los_textos_del_panel_caben(self):
+        import settings
+        from render.texto import fuente
+        from scenes.phone import NOMBRES_DECISION, X_PANEL
+        libre = settings.ANCHO - X_PANEL - 2
+        textos = ["OPINIÓN", "POPULAR", "TU DECISIÓN:", "SE ESCAPÓ", "A CONTINUACIÓN", "TODO LISTO",
+                  "EL PAÍS OPINA", "LUEGO: VEREDICTO", "ENTER: CONTINUAR", "ENTER: SALTAR",
+                  "FLECHAS: LEER", "CRUCETA: LEER"] + [f"LUEGO: NIVEL {n}" for n in (2, 3)]
+        textos += list(NOMBRES_DECISION.values())
+        for texto in textos:
+            self.assertLessEqual(fuente(1).size(texto)[0], libre, texto)

@@ -41,6 +41,8 @@ LINEAS = [
     ("ARTE", C["naranja"], 1),
     ("PERSONAJES GENERADOS CON IA", C["blanco"], 1),
     ("Y ADAPTADOS A PIXEL ART POR CÓDIGO", C["blanco"], 1),
+    ("REPORTAJES: PERSONAJES DEL EQUIPO", C["blanco"], 1),
+    ("PROCESADOS A PIXEL ART POR CÓDIGO", C["blanco"], 1),
     ("FONDOS, EFECTOS Y ANIMACIONES", C["blanco"], 1),
     ("DIBUJADOS POR CÓDIGO", C["blanco"], 1),
     ("", None, 1),

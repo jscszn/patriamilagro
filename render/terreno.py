@@ -20,10 +20,6 @@ import settings
 Color = Tuple[int, int, int]
 
 
-def _mezclar(a: Color, b: Color, t: float) -> Color:
-    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
-
-
 def _oscuro(c: Color, k: float) -> Color:
     return tuple(max(0, int(v * k)) for v in c)
 
@@ -57,7 +53,7 @@ class PintorTerreno:
 
     # --- Suelo ------------------------------------------------------------------------------------
     def _suelo(self, r: pygame.Rect, suelos) -> None:
-        sup, rng = self.sup, self.rng
+        sup = self.sup
         base, detalle, borde = self.amb["suelo"], self.amb["suelo_detalle"], self.amb["suelo_borde"]
         alto = settings.ALTO - r.top
         # Cuerpo con degradado: más oscuro hacia abajo

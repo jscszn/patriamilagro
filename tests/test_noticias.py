@@ -95,3 +95,22 @@ class TestAutores(unittest.TestCase):
             for categoria in (news.MEDIOS, news.INFLUENCERS):
                 autores = [p.autor for p in feed if p.categoria == categoria]
                 self.assertEqual(len(autores), len(set(autores)), (d, categoria, autores))
+
+
+class TestEscape(unittest.TestCase):
+    """Si se acaba el reloj, el jefe ESCAPA: cuenta como liberar, pero se narra como escape."""
+
+    def test_el_feed_cuenta_el_escape_y_no_una_liberacion(self):
+        feed = news.generar_feed([CAPTURAR, LIBERAR], "Don Concreto", escapes=[2])
+        textos = " ".join(p.texto for p in feed)
+        self.assertIn(feed[0].texto, [t.format(jefe="Don Concreto", lugar="la ciudad")
+                                      for t in news.NOTICIAS[LIBERAR]["escapo"][news.MEDIOS]])
+        self.assertIn("#SeVoló", textos)
+        self.assertNotIn("deja libre", textos.lower())
+
+    def test_un_escape_anterior_no_cuenta_como_liberacion(self):
+        """Capturar después de un escape no es "rectificar tras liberar"; liberar tras un escape
+        no es "reincidente"."""
+        self.assertEqual(news.contexto_de(news.narrado([LIBERAR, CAPTURAR], escapes=[1])), "normal")
+        self.assertEqual(news.contexto_de(news.narrado([LIBERAR, LIBERAR], escapes=[1])), "normal")
+        self.assertEqual(news.contexto_de(news.narrado([LIBERAR, CAPTURAR])), "rectifica")

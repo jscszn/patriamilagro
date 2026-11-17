@@ -111,8 +111,12 @@ Estado = Callable[[Vehiculo, float, object], Optional[str]]
 
 
 def _aviso(siguiente: str) -> Estado:
-    """Espera fuera de la pantalla mientras suena el aviso (el HUD muestra por dónde viene)."""
+    """Espera fuera de la pantalla mientras suena el aviso (el HUD muestra por dónde viene).
+    La cámara sigue avanzando durante el aviso: el vehículo se mantiene pegado al borde por el que
+    va a entrar (si se quedara quieto, al terminar el aviso aparecería en medio de la pantalla)."""
     def estado(v: Vehiculo, dt: float, mundo) -> Optional[str]:
+        if hasattr(mundo, "mantener_fuera_de_cuadro"):
+            mundo.mantener_fuera_de_cuadro(v)
         return siguiente if v.t_estado >= v.stats["aviso"] * mundo.factor_aviso() else None
     return estado
 

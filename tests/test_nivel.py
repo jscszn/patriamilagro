@@ -13,7 +13,6 @@ import pygame  # noqa: E402
 import input_manager as im  # noqa: E402
 import settings  # noqa: E402
 from core.bullet import Bala  # noqa: E402
-from core.enemy import Sicario  # noqa: E402
 from core.game_state import EstadoJuego  # noqa: E402
 from core.player import Jugador  # noqa: E402
 from levels import NIVELES, nivel1  # noqa: E402

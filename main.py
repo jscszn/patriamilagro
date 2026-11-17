@@ -1,3 +1,9 @@
+# /// script
+# dependencies = [
+#   "pygame-ce",
+#   "numpy",
+# ]
+# ///
 """Punto de entrada de Patria Milagro.
 
 Uso:
@@ -5,22 +11,31 @@ Uso:
     python main.py --headless 300        # corre 300 frames sin ventana (pruebas)
     python main.py --arena               # (desarrollo) cada nivel empieza en la arena del jefe
     python main.py --nivel 3 --arena     # (desarrollo) empieza directo en el nivel 3
+
+Versión web (pygbag): tools/empaquetar_web.py arma el paquete. En el navegador el bucle es
+`main_web` (asíncrono: cede el turno al navegador en cada cuadro) y la ventana mide 256x224;
+la página la agranda con píxeles nítidos.
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import sys
+import time
 
+import numpy  # noqa: F401  (la versión web descarga numpy al verlo importado aquí arriba)
 import pygame
 
 import settings
 from input_manager import InputManager
+from ritmo import Ritmo, ajustar
 from render.sprites import GestorSprites
 from scenes.base import SceneManager
 from core.partida import Partida
 from scenes.decision import DecisionScene
 from scenes.ending import EndingScene
+from scenes.reportaje import ReportajeScene
 from scenes.phone import PhoneScene
 from audio import gestor as audio
 from core.logros import GestorLogros
@@ -55,10 +70,15 @@ class Juego:
         pygame.init()
         pygame.display.set_caption(settings.TITULO)
         self.opciones = settings.cargar_opciones()
-        tam = (settings.ANCHO * settings.ESCALA_INICIAL, settings.ALTO * settings.ESCALA_INICIAL)
-        self.ventana = pygame.display.set_mode(tam, pygame.RESIZABLE)
+        if settings.WEB:              # el navegador agranda el lienzo: no hace falta escalar aquí
+            import platform
+            self.ventana = pygame.display.set_mode((settings.ANCHO, settings.ALTO))
+            platform.window.canvas.style.imageRendering = "pixelated"
+        else:
+            tam = (settings.ANCHO * settings.ESCALA_INICIAL, settings.ALTO * settings.ESCALA_INICIAL)
+            self.ventana = pygame.display.set_mode(tam, pygame.RESIZABLE)
         self.lienzo = superficie_opaca((settings.ANCHO, settings.ALTO))  # resolución interna, sin alfa
-        self.reloj = pygame.time.Clock()
+        self.ritmo = Ritmo(settings.FPS)      # marca los cuadros a 60 por segundo exactos
         self.entrada = InputManager()
         self.sprites = GestorSprites()
         # Sonido y logros: en modo headless (pruebas) sin tarjeta de sonido y sin escribir en disco
@@ -85,6 +105,7 @@ class Juego:
             "sala": SalaScene,
             "partida_red": PartidaRedScene,
             "telefono": PhoneScene,
+            "reportaje": ReportajeScene,
             "final": EndingScene,
             "logros": LogrosScene,
             "creditos": CreditosScene,
@@ -123,14 +144,17 @@ class Juego:
         """Un frame: eventos -> entrada -> N pasos fijos de simulación -> dibujo."""
         if self.headless:
             dt_real = settings.DT  # en pruebas el tiempo avanza exacto
+        elif settings.WEB:         # el navegador marca los cuadros: aquí solo se mide
+            dt_real = min(ajustar(self.ritmo.medir(), settings.DT), 0.25)
         else:
-            dt_real = min(self.reloj.tick(settings.FPS) / 1000.0, 0.25)
+            # Un intervalo cercano a 1/60 s cuenta como un cuadro exacto: un paso por imagen
+            dt_real = min(ajustar(self.ritmo.esperar(), settings.DT), 0.25)
 
         eventos = pygame.event.get()
         for e in eventos:
             if e.type == pygame.QUIT:
                 self.salir()
-            elif e.type == pygame.KEYDOWN and e.key == pygame.K_F11:
+            elif e.type == pygame.KEYDOWN and e.key == pygame.K_F11 and not settings.WEB:   # en la web, F11 es del navegador
                 pygame.display.toggle_fullscreen()
             self.entrada.procesar_evento(e)
         self.entrada.actualizar()
@@ -175,7 +199,11 @@ class Juego:
         logro, t = self.avisos[0]
         entrada = min(1.0, (3.5 - t) / 0.25, t / 0.25)  # se desliza al entrar y al salir
         caja = pygame.Rect(0, 0, 200, 26)
-        caja.midtop = (128, int(-26 + 30 * entrada))
+        if self.escenas.actual is not None and self.escenas.actual.avisos_abajo:
+            caja.h = 24                                     # cabe en el pie (y 200..224), bajo el puntaje
+            caja.midbottom = (128, settings.ALTO + 24 - int(24 * entrada))   # sube desde abajo
+        else:
+            caja.midtop = (128, int(-26 + 30 * entrada))
         dibujar_marco(sup, caja, fondo=(40, 30, 0), borde=settings.COLORES["amarillo"])
         dibujar_texto(sup, "¡LOGRO DESBLOQUEADO!", (128, caja.y + 3), settings.COLORES["amarillo"], centrado=True)
         dibujar_texto(sup, logro.titulo, (128, caja.y + 14), settings.COLORES["blanco"], centrado=True)
@@ -202,6 +230,26 @@ class Juego:
             self.frame()
         pygame.quit()
 
+    async def ejecutar_web(self) -> None:
+        """Bucle de la versión web: tras cada cuadro cede el turno al navegador, que lo llama
+        de nuevo en el siguiente refresco de pantalla. Cada 5 s deja una medida de rendimiento
+        en la consola del navegador y en `window.patria_ritmo`."""
+        import platform
+        trabajo, cuadros, inicio = 0.0, 0, time.perf_counter()
+        while self.corriendo:
+            t0 = time.perf_counter()
+            self.frame()
+            trabajo += time.perf_counter() - t0
+            cuadros += 1
+            if cuadros == 300:
+                ahora = time.perf_counter()
+                medida = (f"{type(self.escenas.actual).__name__}: {1000 * trabajo / cuadros:.1f} ms por cuadro, "
+                          f"{cuadros / (ahora - inicio):.1f} cuadros/s")
+                print("[ritmo]", medida)
+                platform.window.patria_ritmo = medida
+                trabajo, cuadros, inicio = 0.0, 0, ahora
+            await asyncio.sleep(0)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Patria Milagro")
@@ -222,5 +270,35 @@ def main() -> None:
         print(f"OK: {juego.frames} frames sin errores")
 
 
-if __name__ == "__main__":
+EQUIPOS_DE_PRUEBA = ("localhost", "127.0.0.1")     # solo aquí valen los atajos de desarrollo
+
+
+def opciones_web(consulta: str, equipo: str = "") -> dict:
+    """Atajos de desarrollo de la versión web, escritos en la dirección de la página igual que
+    --nivel y --arena en la consola: "?nivel=3&arena=1" -> {"nivel": 3, "arena": True}.
+    Solo funcionan en el servidor de prueba local: en la página publicada se ignoran (nadie
+    puede saltarse niveles cambiando la dirección)."""
+    if equipo not in EQUIPOS_DE_PRUEBA:
+        return {"nivel": None, "arena": False}
+    pares = dict(par.split("=", 1) for par in consulta.lstrip("?").split("&") if "=" in par)
+    nivel = pares.get("nivel", "")
+    return {"nivel": int(nivel) if nivel in ("1", "2", "3") else None, "arena": pares.get("arena") == "1"}
+
+
+async def main_web() -> None:
+    """Entrada de la versión web. Los atajos de desarrollo solo valen en el servidor de prueba."""
+    import platform
+    opciones = opciones_web(str(platform.window.location.search), str(platform.window.location.hostname))
+    t0 = time.perf_counter()
+    if opciones["nivel"]:
+        juego = Juego(arena=opciones["arena"], escena_inicial="nivel", numero=opciones["nivel"])
+    else:
+        juego = Juego(arena=opciones["arena"])
+    platform.window.patria_arranque = f"{time.perf_counter() - t0:.1f} s"   # lo que tardó en preparar el juego
+    await juego.ejecutar_web()
+
+
+if settings.WEB:
+    asyncio.run(main_web())
+elif __name__ == "__main__":
     sys.exit(main())

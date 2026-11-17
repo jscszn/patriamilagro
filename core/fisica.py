@@ -89,11 +89,6 @@ class Geometria:
                     c.vy = 0.0
                     c.en_suelo = True
 
-    def hay_suelo_bajo(self, x: float, y_pie: float) -> bool:
-        """¿Hay suelo o plataforma justo debajo del punto (x, y_pie)?"""
-        punto = pygame.Rect(int(x), int(y_pie) + 1, 1, 2)
-        return any(punto.colliderect(r) for r in self.solidos + self.plataformas)
-
     def altura_suelo(self, x: float) -> float:
         """Altura de la superficie de suelo en la columna x (o un valor bajo si es precipicio)."""
         alturas = [s.top for s in self.solidos if s.left <= x < s.right]

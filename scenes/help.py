@@ -56,9 +56,13 @@ PAGINAS = [
      "CORTA: menos tramos, pero más peligro: llegan más refuerzos enemigos.\n"
      "Capturar o extraditar calma la zona; liberar la empeora."),
     ("EL TELÉFONO",
-     "Entre niveles lees las noticias sobre tu decisión.\n\n"
+     "Después de cada jefe lees las noticias sobre tu decisión.\n\n"
      "Arriba/abajo: desplazar el feed y leer a tu ritmo.\n"
-     "Enter / A: seguir al próximo nivel."),
+     "Enter / A: seguir."),
+    ("EL PAÍS OPINA",
+     "Luego, un reportaje comenta tu decisión: un noticiero, el directo de un influencer o "
+     "una entrevista en la calle. Cada partida reparte los tres al azar entre los niveles.\n\n"
+     "Enter / A: completar el texto y pasar al siguiente cuadro."),
     ("PANTALLA FINAL",
      "Izquierda/derecha: cambiar de página (resultado, árbol, finales, grafos).\n\n"
      "En el árbol, arriba/abajo anima los recorridos: ruta elegida, preorden, BFS y "

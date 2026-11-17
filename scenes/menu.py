@@ -43,7 +43,8 @@ class MenuScene(Scene):
 
     def __init__(self, juego, **datos):
         super().__init__(juego, **datos)
-        self.lista = ListaOpciones(self.OPCIONES)
+        # En la versión web no hay a dónde "salir": se cierra la pestaña
+        self.lista = ListaOpciones([o for o in self.OPCIONES if not (settings.WEB and o == "SALIR")])
         self.tiempo = 0.0
         self.fondo = self._pintar_fondo()
         self.busto = juego.sprites.frame("presidente_menu", "quieto", 0)

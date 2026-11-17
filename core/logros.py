@@ -5,11 +5,10 @@ se desbloquean. Se guardan en config/logros.json; en las pruebas se usan solo en
 """
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+import almacen
 from core.decision_tree import FINALES
 
 
@@ -53,22 +52,21 @@ class GestorLogros:
     def _cargar(self) -> None:
         if not self.ruta:
             return
+        datos = almacen.leer(self.ruta)
+        if not isinstance(datos, dict):
+            return
         try:
-            with open(self.ruta, encoding="utf-8") as f:
-                datos = json.load(f)
             self.desbloqueados = [c for c in datos.get("desbloqueados", []) if c in POR_CLAVE]
             self.sicarios = int(datos.get("sicarios", 0))
             self.finales_vistos = list(datos.get("finales_vistos", []))
-        except (OSError, ValueError):
+        except (TypeError, ValueError):
             pass
 
     def guardar(self) -> None:
         if not self.ruta:
             return
-        os.makedirs(os.path.dirname(self.ruta), exist_ok=True)
-        with open(self.ruta, "w", encoding="utf-8") as f:
-            json.dump({"desbloqueados": self.desbloqueados, "sicarios": self.sicarios,
-                       "finales_vistos": self.finales_vistos}, f, indent=2, ensure_ascii=False)
+        almacen.guardar(self.ruta, {"desbloqueados": self.desbloqueados, "sicarios": self.sicarios,
+                                    "finales_vistos": self.finales_vistos})
 
     # --- Reglas -------------------------------------------------------------------------------
     def desbloquear(self, clave: str) -> bool:

@@ -1,0 +1,50 @@
+SPRITES PROPIOS DE LOS REPORTAJES
+=================================
+
+Deja aquí los PNG y el juego los usa en lugar de los dibujados por código. No hay que tocar
+nada más: lo que falte se sigue dibujando por código.
+
+PERSONAJES (bustos, de la cintura para arriba)
+----------------------------------------------
+- Tamaño: 88 x 116 px. También sirve un múltiplo o la mitad exacta (44 x 58, 176 x 232): el
+  juego lo escala entero, sin suavizar. Nunca se estira.
+- Fondo transparente (PNG con alfa).
+- Todos MIRANDO A LA DERECHA: el juego los voltea cuando hace falta.
+- La boca en (44, 42), con la cabeza entera por encima.
+- El busto puede terminar a cualquier altura: el escritorio (noticiero y directo) o el cuadro de
+  diálogo (calle) tapan su corte de abajo. En la calle cada busto se apoya por su borde de abajo.
+- En cada escena el juego les agrega un filo de luz y un tono del color de la escena, y en los
+  estudios su sombra en la pared, para que se integren con el fondo.
+
+Archivos por personaje (solo el primero es obligatorio):
+  <clave>.png            boca cerrada, ojos abiertos
+  <clave>_habla1.png     boca entreabierta
+  <clave>_habla2.png     boca abierta
+  <clave>_parpadeo.png   ojos cerrados
+
+Claves:
+  presentadora   LUCÍA PRADO, noticiero
+  analista       DR. ORTIZ, noticiero
+  influencer     @NICOVIRAL, directo
+  reportera      TATIANA RÍOS, calle (si su PNG existe, se usa el micrófono que trae en la
+                 mano; si no, el juego le dibuja un brazo con micrófono)
+  carmen         ABUELA CARMEN, vecina de la selva (nivel 1) y veredicto del cierre (nivel 3)
+  jhon           JHON, taxista de Medellín
+  efrain         DON EFRAÍN, tendero de La Guajira
+
+Para que combinen con el juego: contorno negro de 1 px, luz desde la izquierda y la paleta de
+assets/paleta.json (los mismos 24 colores de los jefes).
+
+FONDOS
+------
+Los tres escenarios se dibujan por código (render/reportajes.py): el usuario los prefirió a los
+fondos procesados desde sus JPG, que a 256 x 160 y con 24 colores quedaban manchados.
+
+DE DÓNDE SALEN
+--------------
+Los PNG de esta carpeta los genera tools/procesar_reportajes.py a partir de los JPG de
+assets/sprites_raw/reportajes/ (quita el fondo magenta, reduce por moda a 12 px del original
+por píxel, cuantiza a la paleta, alinea por la boca y genera los estados que hablan y parpadean). Para cambiar un personaje,
+reemplaza su JPG y vuelve a correr el script; las posiciones de la boca y los ojos de cada
+original están al inicio del script (BOCAS y OJOS). Hoja de revisión:
+assets/reportajes_preview.png.

@@ -15,6 +15,7 @@ comentario solo tiene sentido en boca de alguien (p. ej. el tendero que cierra s
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import asdict, dataclass
 from typing import Dict, List, Sequence
 
@@ -30,7 +31,7 @@ PORTAL = "PATRIANOTICIAS"   # nombre del portal ficticio que muestra el teléfon
 # --- Autores ficticios ----------------------------------------------------------
 AUTORES = {
     MEDIOS: ["LA BRÚJULA TV", "EL PREGÓN", "VENTANA 7 TV", "RADIO CUMBRE", "REV. SEMÁFORO"],
-    INFLUENCERS: ["@VALEVIRAL", "@PROFEOPINA", "@TIOMEMES", "@GAMERPATRIOTA", "@MODAYJUSTICIA"],
+    INFLUENCERS: ["@NICOVIRAL", "@PROFEOPINA", "@TIOMEMES", "@GAMERPATRIOTA", "@MODAYJUSTICIA"],
     PUEBLO: ["DOÑA RUBIELA", "JHON, TAXISTA", "ABUELA CARMEN", "DON EFRAÍN", "ESTUDIANTE U.",
              "MOTOTAXISTA"],
 }
@@ -112,6 +113,22 @@ NOTICIAS: Dict[str, Dict[str, Dict[str, List[str]]]] = {
                 ("ABUELA CARMEN", "En mis tiempos eso no se veía."),
             ],
         },
+        # El jefe ESCAPÓ: se acabó el reloj mientras el presidente dudaba (cuenta como liberar,
+        # pero se cuenta como lo que fue)
+        "escapo": {
+            MEDIOS: [
+                "{jefe} escapa en {lugar} mientras el presidente dudaba.",
+                "Quince segundos de silencio en palacio y {jefe} desapareció.",
+            ],
+            INFLUENCERS: [
+                "El presi se quedó pensando y {jefe} se fue caminando. Literal.",
+                "Tutorial: cómo perder a un capo en 15 segundos.",
+            ],
+            PUEBLO: [
+                "Presidente, ¿y no lo tenía agarrado?",
+                ("DON EFRAÍN", "Así se me van los que no pagan: mientras uno piensa."),
+            ],
+        },
         # Liberar cuando ya se había liberado antes: los textos son más duros
         "reincidente": {
             MEDIOS: [
@@ -131,6 +148,7 @@ NOTICIAS: Dict[str, Dict[str, Dict[str, List[str]]]] = {
 }
 
 # Hashtags: máximo 16 caracteres para que quepan en una línea de la tarjeta
+TENDENCIAS_ESCAPO = ["#SeVoló", "#ElQueDudaPierde", "#RelojDePalacio"]
 TENDENCIAS = {
     CAPTURAR: ["#JusticiaYa", "#MilagroCumple", "#CapoEnCana"],
     EXTRADITAR: ["#ExtraditadoYa", "#JusticiaGlobal", "#YLaDeAquíQué"],
@@ -151,8 +169,20 @@ class Publicacion:
         return asdict(self)
 
 
+ESCAPO = "escapo"      # marca de un nivel cuyo jefe huyó (ver narrado)
+
+
+def narrado(camino: Sequence[str], escapes: Sequence[int] = ()) -> List[str]:
+    """El camino como se CUENTA: los niveles cuyo jefe escapó dicen "escapo" en vez de liberar,
+    para que un escape no se narre como una liberación (ni "rectifica", ni "reincidente")."""
+    return [ESCAPO if n in escapes else d for n, d in enumerate(camino, start=1)]
+
+
 def contexto_de(camino: Sequence[str]) -> str:
-    """Qué variante especial corresponde según el camino acumulado del árbol."""
+    """Qué variante especial corresponde según el camino acumulado del árbol (puede venir
+    narrado: un "escapo" al final da el contexto "escapo")."""
+    if camino and camino[-1] == ESCAPO:
+        return ESCAPO
     if not camino:
         return "normal"
     actual, previas = camino[-1], list(camino[:-1])
@@ -165,18 +195,35 @@ def contexto_de(camino: Sequence[str]) -> str:
     return "normal"
 
 
+def contraer(texto: str) -> str:
+    """Contracciones con el artículo del nombre del jefe: "a EL JAGUAR" -> "al JAGUAR",
+    "de EL JAGUAR" -> "del JAGUAR" (los jefes se llaman "EL JAGUAR DEL MONTE", etc.).
+    Respeta si la preposición estaba en mayúsculas ("LO DE EL" -> "LO DEL")."""
+    def unir(m):
+        prep = m.group(1)
+        contraida = "al" if prep.lower() == "a" else "del"
+        if prep.isupper():
+            contraida = contraida.upper()
+        elif prep[0].isupper():
+            contraida = contraida.capitalize()
+        return contraida + " "
+    return re.sub(r"\b(a|A|de|De|DE) EL (?=[A-ZÁÉÍÓÚÑ])", unir, texto)
+
+
 def _formatear(texto: str, jefe: str, nivel: int) -> str:
-    return texto.format(jefe=jefe, lugar=LUGARES.get(nivel, "el país"), nivel=nivel)
+    return contraer(texto.format(jefe=jefe, lugar=LUGARES.get(nivel, "el país"), nivel=nivel))
 
 
-def generar_feed(camino: Sequence[str], jefe: str, semilla: str = None) -> List[Publicacion]:
+def generar_feed(camino: Sequence[str], jefe: str, semilla: str = None,
+                 escapes: Sequence[int] = ()) -> List[Publicacion]:
     """Arma el feed del teléfono para la última decisión del camino.
+    escapes: niveles cuyo jefe escapó (se narran como escape, no como liberación).
 
     Es determinista: el mismo camino produce siempre el mismo feed (útil en pruebas y para
     que dos jugadores en red vean lo mismo).
     """
     decision, nivel = camino[-1], len(camino)
-    contexto = contexto_de(camino)
+    contexto = contexto_de(narrado(camino, escapes))
     rng = random.Random(semilla or "/".join(camino) + jefe)
     textos = NOTICIAS[decision]
     especiales = textos.get(contexto, {}) if contexto != "normal" else {}
@@ -219,7 +266,7 @@ def generar_feed(camino: Sequence[str], jefe: str, semilla: str = None) -> List[
         if por_categoria[categoria]:
             feed.append(publicacion(categoria, por_categoria[categoria].pop(0)))
         if i == 2:
-            etiquetas = "  ".join(TENDENCIAS[decision])
+            etiquetas = "  ".join(TENDENCIAS_ESCAPO if contexto == ESCAPO else TENDENCIAS[decision])
             feed.append(Publicacion("tendencias", "TENDENCIAS", etiquetas))
     return feed
 
@@ -234,5 +281,5 @@ def todos_los_textos() -> List[str]:
     """Todos los textos y nombres (para validarlos en las pruebas)."""
     textos = [t for _, t in entradas()] + [a for a, _ in entradas() if a]
     textos += [a for lista in AUTORES.values() for a in lista]
-    textos += [t for lista in TENDENCIAS.values() for t in lista]
+    textos += [t for lista in TENDENCIAS.values() for t in lista] + TENDENCIAS_ESCAPO
     return textos + [PORTAL]

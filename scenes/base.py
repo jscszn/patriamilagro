@@ -11,6 +11,9 @@ class Scene:
 
     # Si es True, la escena de abajo en la pila también se dibuja (p. ej. menú de pausa).
     transparente = False
+    # Si es True, el aviso de "¡LOGRO DESBLOQUEADO!" aparece abajo y no arriba (para no tapar
+    # lo importante de la escena, p. ej. el título del final obtenido)
+    avisos_abajo = False
 
     def __init__(self, juego, **datos):
         self.juego = juego

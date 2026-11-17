@@ -44,6 +44,9 @@ class Partida:
     roles: Tuple[str, ...] = ("presidente",)       # roles presentes (modo multijugador)
     cambios_mapa: List[str] = field(default_factory=list)   # qué cambió en el mapa con la última decisión
     rutas: Dict[int, dict] = field(default_factory=dict)    # ruta elegida para llegar a cada nivel
+    # Niveles cuyo jefe ESCAPÓ (se acabó el reloj): cuentan como "dejar libre" para la opinión, el
+    # árbol y los finales, pero las noticias y los reportajes los cuentan como lo que fueron
+    escapes: List[int] = field(default_factory=list)
 
     def __post_init__(self):
         if self.mapa is None:
@@ -85,9 +88,14 @@ class Partida:
         return self.mapa.peligro(numero)
 
     # --- Decisiones: árbol -> grafo -----------------------------------------------------------------
-    def decidir(self, decision: str) -> None:
+    def decidir(self, decision: str, escapo: bool = False) -> None:
         """Registra la decisión del nivel actual: la INSERTA en el árbol y cambia las vías del
-        mapa. Con un influencer en la partida, el efecto sobre la opinión se amplifica."""
+        mapa. Con un influencer en la partida, el efecto sobre la opinión se amplifica.
+        escapo=True: se acabó el reloj y el jefe huyó (la decisión es DECISION_POR_TIEMPO)."""
+        if escapo and self.nivel not in self.escapes:
+            self.escapes.append(self.nivel)
+        elif not escapo and self.nivel in self.escapes:
+            self.escapes.remove(self.nivel)
         self._respaldo = self.mapa.to_dict()
         nodo = self.arbol.decidir(decision)
         if "influencer" in self.roles:
@@ -106,6 +114,8 @@ class Partida:
         if not self.puede_revocar:
             return None
         decision = self.arbol.revocar()                     # eliminación en el árbol
+        if self.nivel in self.escapes:
+            self.escapes.remove(self.nivel)
         self.mapa = Mapa.from_dict(self._respaldo)
         self._respaldo = None
         self.revocaciones -= 1
@@ -113,13 +123,17 @@ class Partida:
         self.cambios_mapa = []
         return decision
 
+    def escapo_en(self, nivel: int) -> bool:
+        """True si en ese nivel el jefe escapó (no se decidió a tiempo)."""
+        return nivel in self.escapes
+
     # --- Serialización -----------------------------------------------------------------------
     def to_dict(self) -> dict:
         return {"arbol": self.arbol.to_dict(), "nivel": self.nivel, "puntaje": self.puntaje,
                 "vidas": self.vidas, "jefes_derrotados": list(self.jefes_derrotados),
                 "semilla": self.semilla, "mapa": self.mapa.to_dict(), "revocaciones": self.revocaciones,
                 "roles": list(self.roles), "cambios_mapa": list(self.cambios_mapa),
-                "rutas": {str(n): dict(r) for n, r in self.rutas.items()}}
+                "rutas": {str(n): dict(r) for n, r in self.rutas.items()}, "escapes": list(self.escapes)}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Partida":
@@ -127,4 +141,5 @@ class Partida:
                    list(d["jefes_derrotados"]), d.get("semilla", 0),
                    Mapa.from_dict(d["mapa"]) if d.get("mapa") else None,
                    d.get("revocaciones", REVOCACIONES), tuple(d.get("roles", ("presidente",))),
-                   list(d.get("cambios_mapa", [])), {int(n): dict(r) for n, r in d.get("rutas", {}).items()})
+                   list(d.get("cambios_mapa", [])), {int(n): dict(r) for n, r in d.get("rutas", {}).items()},
+                   list(d.get("escapes", [])))

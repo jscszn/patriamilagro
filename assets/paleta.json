@@ -1,5 +1,5 @@
 {
-  "_ayuda": "Paleta compartida de los sprites (congelada). B\u00f3rrala o usa --recalcular-paleta para recalcularla con k-means.",
+  "_ayuda": "Paleta compartida de los sprites (congelada). Los 24 primeros salieron de k-means; los 4 \u00faltimos (celeste y morado con su sombra) se agregaron a mano el 2026-11-12 para la chaqueta de la reportera y el su\u00e9ter de la abuela Carmen. B\u00f3rrala o usa --recalcular-paleta para recalcularla con k-means (se perder\u00edan esos 4).",
   "colores": [
     [
       246,
@@ -120,6 +120,26 @@
       0,
       0,
       0
+    ],
+    [
+      127,
+      187,
+      213
+    ],
+    [
+      79,
+      133,
+      164
+    ],
+    [
+      113,
+      78,
+      128
+    ],
+    [
+      83,
+      50,
+      97
     ]
   ]
 }

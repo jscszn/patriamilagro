@@ -98,8 +98,9 @@ class DecisionScene(Scene):
         return self.t_sello > 0 and not self.escapo and self.partida.puede_revocar
 
     def _confirmar(self, dt: float) -> None:
-        self.partida.decidir(self.decision)                # inserción en el árbol + cambios en el mapa
-        self.juego.logros.notificar("decision", decision=self.decision)
+        self.partida.decidir(self.decision, escapo=self.escapo)   # árbol + mapa (y si huyó)
+        if not self.escapo:                                # huir no es "dejarlo libre" (logro)
+            self.juego.logros.notificar("decision", decision=self.decision)
         audio.efecto("sello")
         self.t_sello = dt
 

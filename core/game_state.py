@@ -140,11 +140,14 @@ class EstadoJuego:
         s.y = (pie if pie is not None else self.geometria.altura_suelo(x + 5)) - s.alto
         self.sicarios.append(s)
 
-    def suelo_firme_cerca(self, x: float, alcance: int = 120):
+    def suelo_firme_cerca(self, x: float, alcance: int = 120, hacia: int = 0):
         """Columna con suelo más cercana a x (primero hacia atrás, luego hacia adelante), para no
-        hacer aparecer un sicario sobre un precipicio. None si no hay suelo cerca."""
+        hacer aparecer un sicario sobre un precipicio. None si no hay suelo cerca.
+        hacia=+1 o -1: busca SOLO en esa dirección (los vehículos buscan hacia afuera de la
+        pantalla: si buscaran hacia adentro, aparecerían en medio de ella)."""
         for distancia in range(0, alcance, 4):
-            for candidato in (x - distancia, x + distancia):
+            candidatos = (x - distancia, x + distancia) if not hacia else (x + hacia * distancia,)
+            for candidato in candidatos:
                 if self.geometria.altura_suelo(candidato + 5) <= settings.ALTO:
                     return candidato
         return None
@@ -265,17 +268,43 @@ class EstadoJuego:
                 self._aparecer_rodando(a)
 
     def _aparecer_rodando(self, a: dict) -> None:
-        """Moto o camioneta: entra rodando por un borde, sobre suelo firme."""
+        """Moto o camioneta: entra rodando por un borde, sobre suelo firme. Aparece SIEMPRE fuera
+        de la pantalla, como los sicarios: si el borde cae sobre un hueco, el suelo se busca más
+        afuera (nunca hacia adentro) y el vehículo entra rodando (la moto salta los huecos)."""
         stats = settings.VEHICULOS[a["tipo"]]
         lado = -1 if a.get("lado") == "izquierda" else 1       # 1 = entra por la derecha
         borde = self.camara_x + settings.ANCHO + 24 if lado > 0 else self.camara_x - 24 - stats["caja"][0]
-        x = self.suelo_firme_cerca(borde, 160)
+        x = self.suelo_firme_cerca(borde, 160, hacia=lado)
         if x is None:
             return
         y = self.geometria.altura_suelo(x + stats["caja"][0] / 2) - stats["caja"][1]
         self.vehiculos.append(Vehiculo.crear(a["tipo"], x, y, -lado, vida=a.get("vida"),
                                              premio=a.get("premio", "")))
         self.evento("aviso_vehiculo", clase=a["tipo"], lado=lado)
+
+    MARGEN_REFUERZO = 24        # a cuántos píxeles fuera del borde espera un vehículo su entrada
+
+    def mantener_fuera_de_cuadro(self, v: Vehiculo) -> None:
+        """Durante el aviso, el vehículo espera JUSTO fuera de la pantalla, del lado por el que
+        entra (direccion -1: entra por la derecha). Si la cámara lo alcanza, se corre hacia afuera
+        sobre suelo firme. Así siempre entra desde el borde, como los sicarios."""
+        if v.direccion < 0:
+            borde = self.camara_x + settings.ANCHO + self.MARGEN_REFUERZO
+            if v.x >= borde:
+                return
+            hacia = 1
+        else:
+            borde = self.camara_x - self.MARGEN_REFUERZO - v.ancho
+            if v.x <= borde:
+                return
+            hacia = -1
+        if v.clase == "dron":                       # vuela: no necesita suelo
+            v.x = borde
+            return
+        x = self.suelo_firme_cerca(borde, 160, hacia=hacia)
+        if x is not None:
+            v.x = x
+            v.y = self.geometria.altura_suelo(x + v.ancho / 2) - v.alto
 
     def _colisiones(self) -> None:
         for b in self.balas:

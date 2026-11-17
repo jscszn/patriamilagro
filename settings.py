@@ -1,8 +1,13 @@
 """Configuración global de Patria Milagro: resolución, tiempos, colores y opciones del jugador."""
 from __future__ import annotations
 
-import json
 import os
+import sys
+
+import almacen
+
+# True cuando el juego corre dentro de un navegador (versión web hecha con pygbag)
+WEB = sys.platform == "emscripten"
 
 # --- Rutas ---------------------------------------------------------------
 RUTA_BASE = os.path.dirname(os.path.abspath(__file__))
@@ -60,19 +65,15 @@ MODOS_DALTONISMO = ["ninguno", "protanopia", "deuteranopia", "tritanopia"]
 def cargar_opciones() -> dict:
     """Lee las opciones guardadas; si no existen o están dañadas usa las de por defecto."""
     opciones = dict(OPCIONES_POR_DEFECTO)
-    try:
-        with open(RUTA_OPCIONES, encoding="utf-8") as f:
-            opciones.update(json.load(f))
-    except (OSError, ValueError):
-        pass
+    guardadas = almacen.leer(RUTA_OPCIONES)
+    if isinstance(guardadas, dict):
+        opciones.update(guardadas)
     return opciones
 
 
 def guardar_opciones(opciones: dict) -> None:
-    """Guarda las opciones en disco en formato JSON legible."""
-    os.makedirs(RUTA_CONFIG, exist_ok=True)
-    with open(RUTA_OPCIONES, "w", encoding="utf-8") as f:
-        json.dump(opciones, f, indent=2, ensure_ascii=False)
+    """Guarda las opciones (en disco o, en la versión web, en el navegador)."""
+    almacen.guardar(RUTA_OPCIONES, opciones)
 
 
 # =============================================================================

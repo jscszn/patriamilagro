@@ -205,7 +205,7 @@ class Sesion:
         p = self.partida
         antes = p.arbol.opinion()
         votos = {str(i): self.jugadores[i]["voto"] for i in self.conectados()}
-        p.decidir(decision)                                # árbol + mapa
+        p.decidir(decision, escapo=escapo)                 # árbol + mapa (y si huyó)
         self._cambiar(RESULTADO, {"decision": decision, "escapo": escapo, "votos": votos, "opinion_antes": antes,
                                   "opinion": p.arbol.opinion(), "cambios_mapa": list(p.cambios_mapa),
                                   "jefe": self.datos["jefe"], "tipo_jefe": self.datos["tipo_jefe"],

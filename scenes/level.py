@@ -524,7 +524,11 @@ class LevelScene(Scene):
 
     def _dibujar_mensajes(self, sup):
         titulo, sub, t = self.cartel
-        if t > 0:
+        # Con la pausa (o la ayuda) superpuesta, su título ocupa el mismo lugar que el cartel.
+        # Solo cuentan las escenas superpuestas: en red, esta vista vive dentro de otra escena.
+        arriba = self.juego.escenas.actual
+        en_pausa = arriba is not self and arriba is not None and arriba.transparente
+        if t > 0 and not en_pausa:
             dibujar_texto(sup, titulo, (128, 76), C["amarillo"], 2, centrado=True)
             if sub:
                 dibujar_texto(sup, sub, (128, 96), C["blanco"], 1, centrado=True)

@@ -42,6 +42,7 @@ RUTA_CAPTURAS = os.path.join(settings.RUTA_BASE, "capturas")
 
 
 class EndingScene(Scene):
+    avisos_abajo = True          # arriba está el título del final: el aviso de logro no lo tapa
     def __init__(self, juego, **datos):
         super().__init__(juego, **datos)
         self.partida = juego.partida
@@ -61,7 +62,7 @@ class EndingScene(Scene):
         self.modos_vistos = set()
         audio.presentar("bienvenida", "final")        # la frase del presidente y luego la música
         juego.logros.notificar("final", clave=self.final.clave)
-        if not juego.headless:                        # las pruebas no deben llenar capturas/
+        if not juego.headless and not settings.WEB:   # ni las pruebas ni la web guardan capturas
             self.archivo_evidencia = self.guardar_evidencia()
 
     def _historial_opinion(self):
@@ -158,7 +159,8 @@ class EndingScene(Scene):
         dibujar_texto(sup, self.final.titulo, (128, 15), color, centrado=True)
         y = dibujar_parrafo(sup, self.final.resumen, (12, 31), 232, C["blanco"], interlineado=2) + 4
         for i, (decision, jefe) in enumerate(zip(self.partida.arbol.camino(), self.partida.jefes_derrotados)):
-            dibujar_texto(sup, f"{i + 1}. {NOMBRES[decision]}", (12, y), C["cian"])
+            nombre = "SE ESCAPÓ" if self.partida.escapo_en(i + 1) else NOMBRES[decision]
+            dibujar_texto(sup, f"{i + 1}. {nombre}", (12, y), C["cian"])
             dibujar_texto(sup, jefe, (104, y), C["gris"])
             y += 11
         # Gráfica y opinión final, pegadas abajo (sobre el puntaje) y con aire arriba
