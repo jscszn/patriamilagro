@@ -16,4 +16,4 @@ assets/sonidos_raw/*.mp3
 HISTORIAL.md
 
 # Versión web: se genera entera con tools/empaquetar_web.py
-web/
+/web/

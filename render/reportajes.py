@@ -546,8 +546,20 @@ class EnVivo(Escenario):
         if not self.fijado:
             return None
         lineas = envolver(self.fijado[1], 1, self.CHAT.w - 10)
-        return pygame.Rect(self.CHAT.x + 2, self.CHAT.y + 13, self.CHAT.w - 4,
+        return pygame.Rect(self.CHAT.x + 1, self.CHAT.y + 13, self.CHAT.w - 2,
                            self.ALTO_LINEA_CHAT * (1 + len(lineas)) + 4)
+
+    def chincheta_fijado(self) -> pygame.Rect:
+        """Dónde va la chincheta: en la barra del chat, sobre la esquina del mensaje fijado (dentro
+        del mensaje tapaba el final de los nombres largos)."""
+        return pygame.Rect(self.CHAT.right - 9, self.CHAT.y + 2, 5, 7)
+
+    def nombre_fijado(self) -> Optional[pygame.Rect]:
+        """El espacio que ocupa el nombre de quien escribió el mensaje fijado."""
+        caja = self.caja_fijado()
+        if caja is None:
+            return None
+        return pygame.Rect((caja.x + 4, caja.y + 2), fuente(1).size(self.fijado[0]))
 
     def _panel_chat(self, s):
         p = self.CHAT
@@ -563,8 +575,9 @@ class EnVivo(Escenario):
             autor, texto = self.fijado
             pygame.draw.rect(s, (90, 40, 10), caja)
             pygame.draw.rect(s, C["amarillo"], caja, 1)
-            self._mensaje(s, caja.x + 3, caja.y + 2, autor, envolver(texto, 1, p.w - 10), C["amarillo"])
-            self._chincheta(s, caja.right - 8, caja.y + 3, C["amarillo"])
+            self._mensaje(s, caja.x + 4, caja.y + 2, autor, envolver(texto, 1, p.w - 10), C["amarillo"])
+            marca = self.chincheta_fijado()
+            self._chincheta(s, marca.x, marca.y, C["blanco"])
             tope = caja.bottom + 3
         # Los demás, de abajo hacia arriba (lo más nuevo abajo). Un mensaje que no cabe entero no
         # se dibuja: nada queda cortado a la mitad ni tapa al fijado.

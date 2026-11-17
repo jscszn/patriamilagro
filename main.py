@@ -198,15 +198,32 @@ class Juego:
             return
         logro, t = self.avisos[0]
         entrada = min(1.0, (3.5 - t) / 0.25, t / 0.25)  # se desliza al entrar y al salir
-        caja = pygame.Rect(0, 0, 200, 26)
-        if self.escenas.actual is not None and self.escenas.actual.avisos_abajo:
-            caja.h = 24                                     # cabe en el pie (y 200..224), bajo el puntaje
-            caja.midbottom = (128, settings.ALTO + 24 - int(24 * entrada))   # sube desde abajo
+        abajo = self.escenas.actual is not None and self.escenas.actual.avisos_abajo
+        caja, y_rotulo, y_titulo = self.caja_aviso(entrada, abajo)
+        amarillo = settings.COLORES["amarillo"]
+        if abajo:                                       # recuadro compacto: un solo borde
+            pygame.draw.rect(sup, (40, 30, 0), caja)
+            pygame.draw.rect(sup, amarillo, caja, 1)
         else:
-            caja.midtop = (128, int(-26 + 30 * entrada))
-        dibujar_marco(sup, caja, fondo=(40, 30, 0), borde=settings.COLORES["amarillo"])
-        dibujar_texto(sup, "¡LOGRO DESBLOQUEADO!", (128, caja.y + 3), settings.COLORES["amarillo"], centrado=True)
-        dibujar_texto(sup, logro.titulo, (128, caja.y + 14), settings.COLORES["blanco"], centrado=True)
+            dibujar_marco(sup, caja, fondo=(40, 30, 0), borde=amarillo)
+        dibujar_texto(sup, "¡LOGRO DESBLOQUEADO!", (128, y_rotulo), amarillo, centrado=True, sombra=not abajo)
+        dibujar_texto(sup, logro.titulo, (128, y_titulo), settings.COLORES["blanco"], centrado=True,
+                      sombra=not abajo)
+
+    @staticmethod
+    def caja_aviso(entrada: float, abajo: bool):
+        """Recuadro del aviso de logro y la altura de sus dos renglones: (caja, y rótulo, y título).
+        Cada renglón ocupa 9 px (2 de tildes + 7 de letra) y ninguno toca el borde.
+        Arriba: recuadro de borde doble que baja desde fuera de la pantalla. Abajo (pantalla
+        final): ocupa justo el pie (y 200..224) y todo su ancho, para tapar entera la línea de
+        navegación en vez de dejar asomar sus puntas a los lados."""
+        if abajo:
+            caja = pygame.Rect(8, 0, 240, 24)
+            caja.bottom = settings.ALTO + 24 - int(24 * entrada)        # sube desde abajo
+            return caja, caja.y + 2, caja.y + 12
+        caja = pygame.Rect(0, 0, 200, 30)
+        caja.midtop = (128, int(-30 + 34 * entrada))
+        return caja, caja.y + 4, caja.y + 15
 
     def _presentar(self) -> None:
         """Escala el lienzo a la ventana con un factor entero (pixel art nítido) y bandas negras.

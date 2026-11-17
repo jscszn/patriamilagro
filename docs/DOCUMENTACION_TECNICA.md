@@ -865,6 +865,9 @@ detectar dónde corre:
 - **La ventana** se dibuja a su resolución interna (256x224) y la página la agranda un número
   entero de veces, para que los píxeles queden parejos.
 
+El juego necesita teclado: en teléfonos y tabletas la página no lo descarga y muestra un aviso
+que pide abrirlo en un computador.
+
 No hay servidor del juego: la página solo entrega archivos, y toda la partida ocurre en el
 equipo de quien juega. En la versión web no están el menú SALIR (se cierra la pestaña), la
 captura de evidencia del final ni el multijugador en red. `tools/empaquetar_web.py` arma el
