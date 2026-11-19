@@ -7,7 +7,8 @@
 """Punto de entrada de Patria Milagro.
 
 Uso:
-    python main.py                       # juego normal
+    python main.py                       # juego normal (intro y menú)
+    python main.py --sin-intro           # (desarrollo) directo al menú
     python main.py --headless 300        # corre 300 frames sin ventana (pruebas)
     python main.py --arena               # (desarrollo) cada nivel empieza en la arena del jefe
     python main.py --nivel 3 --arena     # (desarrollo) empieza directo en el nivel 3
@@ -46,6 +47,7 @@ from render.ui import dibujar_marco, superficie_opaca
 from scenes.creditos import CreditosScene
 from scenes.help import HelpScene
 from scenes.historia import HistoriaScene
+from scenes.intro import IntroScene
 from scenes.level import LevelScene
 from scenes.logros import LogrosScene
 from scenes.menu import MenuScene
@@ -94,6 +96,7 @@ class Juego:
 
         self.escenas = SceneManager(self)
         for nombre, clase in {
+            "intro": IntroScene,
             "menu": MenuScene,
             "ayuda": HelpScene,
             "opciones": OptionsScene,
@@ -253,11 +256,28 @@ class Juego:
         en la consola del navegador y en `window.patria_ritmo`."""
         import platform
         trabajo, cuadros, inicio = 0.0, 0, time.perf_counter()
+        arranque, lentos, anterior = inicio, [], inicio
+        voz_desde = None
         while self.corriendo:
             t0 = time.perf_counter()
             self.frame()
-            trabajo += time.perf_counter() - t0
+            t1 = time.perf_counter()
+            trabajo += t1 - t0
             cuadros += 1
+            # Cuadros que tardaron de más (trabajo propio o espera del navegador): son los que
+            # cortan el sonido. Quedan en `window.patria_lentos` como "segundo:ms de trabajo/ms entre cuadros"
+            if (t1 - t0 > 0.034 or t0 - anterior > 0.05) and len(lentos) < 200:
+                lentos.append(f"{t0 - arranque:.2f}:{1000 * (t1 - t0):.0f}/{1000 * (t0 - anterior):.0f}"
+                              f"@{type(self.escenas.actual).__name__}")
+                platform.window.patria_lentos = " ".join(lentos)
+            anterior = t0
+            # Cuándo habló el presidente y cuánto duró la frase (para comprobar que sale entera)
+            if self.audio.hablando():
+                if voz_desde is None:
+                    voz_desde = t0
+            elif voz_desde is not None:
+                platform.window.patria_voz = f"inicio {voz_desde - arranque:.2f} s, duracion {t0 - voz_desde:.2f} s"
+                voz_desde = None
             if cuadros == 300:
                 ahora = time.perf_counter()
                 medida = (f"{type(self.escenas.actual).__name__}: {1000 * trabajo / cuadros:.1f} ms por cuadro, "
@@ -276,12 +296,15 @@ def main() -> None:
                         help="(desarrollo) cada nivel empieza en la arena del jefe")
     parser.add_argument("--nivel", type=int, choices=(1, 2, 3),
                         help="(desarrollo) empieza directamente en ese nivel")
+    parser.add_argument("--sin-intro", action="store_true",
+                        help="(desarrollo) abre directo en el menú, sin la intro")
     args = parser.parse_args()
     if args.nivel:
         juego = Juego(headless=args.headless is not None, arena=args.arena,
                       escena_inicial="nivel", numero=args.nivel)
     else:
-        juego = Juego(headless=args.headless is not None, arena=args.arena)
+        juego = Juego(headless=args.headless is not None, arena=args.arena,
+                      escena_inicial="menu" if args.sin_intro else "intro")
     juego.ejecutar(max_frames=args.headless)
     if args.headless is not None:
         print(f"OK: {juego.frames} frames sin errores")
@@ -306,12 +329,20 @@ async def main_web() -> None:
     """Entrada de la versión web. Los atajos de desarrollo solo valen en el servidor de prueba."""
     import platform
     opciones = opciones_web(str(platform.window.location.search), str(platform.window.location.hostname))
+    # Preparar el juego congela la página cerca de un segundo: que se vea el aviso de carga y no
+    # una pantalla negra. Se cede el turno dos veces para que el navegador alcance a pintarlo.
+    aviso = platform.window.infobox
+    aviso.innerText = "CARGANDO PATRIA MILAGRO..."
+    aviso.style.display = "block"
+    await asyncio.sleep(0.05)
+    await asyncio.sleep(0.05)
     t0 = time.perf_counter()
     if opciones["nivel"]:
         juego = Juego(arena=opciones["arena"], escena_inicial="nivel", numero=opciones["nivel"])
     else:
-        juego = Juego(arena=opciones["arena"])
+        juego = Juego(arena=opciones["arena"], escena_inicial="intro")
     platform.window.patria_arranque = f"{time.perf_counter() - t0:.1f} s"   # lo que tardó en preparar el juego
+    aviso.style.display = "none"
     await juego.ejecutar_web()
 
 

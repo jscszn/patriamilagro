@@ -20,6 +20,11 @@ import settings
 from audio import sintesis
 
 RUTA_SONIDOS = os.path.join(settings.RUTA_ASSETS, "sonidos")
+# Muestras que se mezclan de una vez. En el navegador el sonido lo alimenta el mismo hilo que
+# dibuja: con 512 (23 ms) cualquier cuadro lento deja un hueco y la voz se oye cortada; con 2048
+# (93 ms) aguanta varios cuadros lentos seguidos. En escritorio se queda en 512 (menos retraso).
+BUFFER = 2048 if settings.WEB else 512
+VOCES = ("bienvenida",)                        # frases grabadas: se cargan al inicio, no al decirlas
 MAX_VOCES = {"disparo_jugador": 3, "disparo_enemigo": 3, "impacto": 3, "explosion": 4, "mover": 1, "tic": 1}
 
 
@@ -29,7 +34,7 @@ class Audio:
         if activo:
             try:
                 if not pygame.mixer.get_init():
-                    pygame.mixer.init(frequency=sintesis.SR, size=-16, channels=2, buffer=512)
+                    pygame.mixer.init(frequency=sintesis.SR, size=-16, channels=2, buffer=BUFFER)
                 pygame.mixer.set_num_channels(24)
                 pygame.mixer.set_reserved(2)                 # canal 0: música; canal 1: voz
                 self.frecuencia, _, self.canales = pygame.mixer.get_init()
@@ -108,6 +113,9 @@ class Audio:
             self._efecto(nombre)
         for nombre in list(sintesis.TEMAS) + list(sintesis.JINGLES):
             self._tema(nombre)
+        for nombre in VOCES:                       # la frase suena al instante, sin leer el archivo entonces
+            if self._archivo(nombre) is not None:
+                self._efecto(nombre)
 
     # --- Reproducción ------------------------------------------------------------------------
     def efecto(self, nombre: str) -> None:
@@ -176,6 +184,12 @@ class Audio:
         elif self.activo:
             self.canal_musica.set_volume(self.vol_musica)
 
+    def apagar_musica(self, ms: int = 1500) -> None:
+        """Apaga la música poco a poco (sin corte) y deja el canal en silencio."""
+        self.tema_actual = None
+        if self.activo:
+            self.canal_musica.fadeout(max(1, ms))
+
     def musica(self, nombre: Optional[str]) -> None:
         """Cambia el tema en bucle (None = silencio). Si ya suena ese tema, no lo reinicia.
         Cambiar de tema cancela la frase hablada que estuviera sonando."""
@@ -213,6 +227,10 @@ def efecto(nombre: str) -> None:
 
 def musica(nombre: Optional[str]) -> None:
     audio.musica(nombre)
+
+
+def apagar_musica(ms: int = 1500) -> None:
+    audio.apagar_musica(ms)
 
 
 def presentar(voz: str, tema: Optional[str]) -> None:

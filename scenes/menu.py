@@ -53,8 +53,10 @@ class MenuScene(Scene):
         self.brillos = [pygame.mask.from_surface(t, 200).to_surface(setcolor=(255, 255, 255, 200), unsetcolor=(0, 0, 0, 0))
                         for t in self.titulos]
         self._capa_rayos = pygame.Surface((settings.ANCHO, settings.ALTO), pygame.SRCALPHA)
-        # Primero "Bienvenido a la Patria Milagro"; el himno arranca cuando termina la frase
-        audio.presentar("bienvenida", "menu")
+        # Primero "Bienvenido a la Patria Milagro"; el himno arranca cuando termina la frase.
+        # Si se viene de la intro, la frase ya se dijo allá (y el himno ya suena o está por sonar)
+        if not datos.get("desde_intro"):
+            audio.presentar("bienvenida", "menu")
 
     # --- Lógica ---------------------------------------------------------------------------
     def update(self, dt, acciones):
